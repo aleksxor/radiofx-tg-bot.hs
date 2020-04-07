@@ -1,18 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Bot where
+module RadioFX.Bot where
 
 import           Control.Applicative            ( (<|>) )
-import           Telegram.Bot.Simple            ( (<#)
-                                                , Eff(..)
-                                                , BotApp(..)
-                                                )
+import           Telegram.Bot.Simple
 import           Telegram.Bot.Simple.UpdateParser
-                                                ( text
-                                                , command
-                                                , parseUpdate
-                                                )
-import           Telegram.Bot.API               ( Update(..) )
-import           Telegram.Bot.Simple.Reply      ( replyText )
+import           Telegram.Bot.API
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 
@@ -22,7 +14,8 @@ data Model = Model
 data Action
   = DoNothing
   | Echo Text
-  | ShowMessage
+  | WelcomeMessage
+  | ShowStationGroups Text
   deriving (Show)
 
 bot :: BotApp Model Action
@@ -32,13 +25,26 @@ bot = BotApp { botInitialModel = Model
              , botJobs         = []
              }
 
+startMessage :: [Text]
+startMessage = ["Hello. I'm RadioFX Bot. ", "", ""]
+
 handleUpdate :: Model -> Update -> Maybe Action
 handleUpdate _model =
-  parseUpdate $ Echo <$> text <|> ShowMessage <$ command "start"
+  parseUpdate
+    $   WelcomeMessage
+    <$  command "start"
+    <|> ShowStationGroups
+    <$> command "show"
 
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
   DoNothing -> pure model
   Echo msg  -> model <# do
     replyText msg
+    pure DoNothing
+  WelcomeMessage -> model <# do
+    replyText (Text.unlines startMessage)
+    pure DoNothing
+  ShowStationGroups owner -> model <# do
+    replyText $ "Show station groups for: " <> owner
     pure DoNothing
