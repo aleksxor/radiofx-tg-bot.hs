@@ -41,6 +41,6 @@ executable radiofx-tg-bot
                    , radiofx-tg-bot
                    , telegram-bot-simple
                    , text
-  -- hs-source-dirs:      
+  hs-source-dirs:    .
   ghc-options:       -Wall -threaded -rtsopts -with-rtsopts=-N
   default-language:  Haskell2010
