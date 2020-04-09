@@ -2,11 +2,19 @@
 module RadioFX.Bot where
 
 import           Control.Applicative            ( (<|>) )
-import           Telegram.Bot.Simple
-import           Telegram.Bot.Simple.UpdateParser
-import           Telegram.Bot.API
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
+
+import           Telegram.Bot.Simple            ( BotApp(..)
+                                                , Eff(..)
+                                                , (<#)
+                                                , replyText
+                                                )
+import           Telegram.Bot.Simple.UpdateParser
+                                                ( command
+                                                , parseUpdate
+                                                )
+import           Telegram.Bot.API               ( Update(..) )
 
 data Model = Model
   deriving (Show)

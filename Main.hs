@@ -2,6 +2,7 @@
 module Main where
 
 import           RadioFX.Bot                    ( bot )
+
 import           Telegram.Bot.API               ( defaultTelegramClientEnv )
 import           Telegram.Bot.Simple            ( getEnvToken
                                                 , startBot_
