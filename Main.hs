@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           RadioFX.Bot                    ( bot )
-
 import           Telegram.Bot.API               ( defaultTelegramClientEnv )
 import           Telegram.Bot.Simple            ( getEnvToken
                                                 , startBot_
                                                 )
 import           Telegram.Bot.Simple.Debug      ( traceBotDefault )
+
+import           RadioFX.Bot                    ( bot )
 
 main :: IO ()
 main = do

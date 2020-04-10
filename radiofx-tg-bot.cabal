@@ -25,11 +25,13 @@ library
   exposed-modules:   RadioFX.Bot
   other-modules:     Paths_radiofx_tg_bot
   hs-source-dirs:    src
-  build-depends:     base
+  build-depends:     base >= 4.7 && < 5
                    , telegram-bot-simple
                    , text
-                   , http-client
-                   , http-client-tls
+                   , http-conduit
+                   , bytestring
+                   , lens
+                   , lens-aeson
   ghc-options:       -Wall
   default-language:  Haskell2010
                      
