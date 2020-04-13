@@ -2,6 +2,7 @@
 module RadioFX.Bot where
 
 import           Control.Applicative            ( (<|>) )
+import           Control.Monad.Trans            ( liftIO )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 
@@ -16,20 +17,43 @@ import           Telegram.Bot.Simple.UpdateParser
                                                 )
 import           Telegram.Bot.API               ( Update(..) )
 
-data Model = Model
+import           RadioFX.API.Request
+
+data Status
+  = Unchanged
+  | Added
+  | Removed
+  deriving (Show)
+
+data StItem a = StItem Status a
+  deriving (Show)
+
+data StationUser = StationUser
+  deriving (Show)
+
+data Model
+  = NoMode
+  | UserMode
+    { owner :: StationUser
+    , stations :: [StItem Station]
+    }
+  | StationMode
+    { station :: Station
+    , members :: [StItem StationUser]
+    }
   deriving (Show)
 
 data Action
   = DoNothing
   | WelcomeMessage
-  | User Text
-  | Station Text
+  | ShowUser Text
+  | ShowStation Text
   | ArgumentExpected
   | WrongCommand
   deriving (Show)
 
 bot :: BotApp Model Action
-bot = BotApp { botInitialModel = Model
+bot = BotApp { botInitialModel = NoMode
              , botAction       = flip handleUpdate
              , botHandler      = handleAction
              , botJobs         = []
@@ -57,9 +81,9 @@ handleUpdate _model =
   parseUpdate
     $   WelcomeMessage
     <$  command "start"
-    <|> singleArg User
+    <|> singleArg ShowUser
     <$> command "user"
-    <|> singleArg Station
+    <|> singleArg ShowStation
     <$> command "station"
     <|> pure WrongCommand
  where
@@ -74,10 +98,15 @@ handleAction action model = case action of
   WelcomeMessage -> model <# do
     replyText startMessage
     pure DoNothing
-  User owner -> model <# do
-    replyText $ "Show station groups for: " <> owner
+  ShowUser user -> model <# do
+    mStations <- liftIO $ getUserStations user
+    case mStations of
+      Just ss -> do
+        replyText $ "User: '" <> user <> "' is a member of theese stations:"
+        replyText . Text.unlines $ getStation <$> ss
+      Nothing -> replyText $ "Could not fetch stations for: " <> user
     pure DoNothing
-  Station group -> model <# do
+  ShowStation group -> model <# do
     replyText $ "Show group: '" <> group <> "' members"
     pure DoNothing
   WrongCommand -> model <# do

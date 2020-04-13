@@ -23,16 +23,20 @@ source-repository head
                      
 library
   exposed-modules:   RadioFX.Bot
+                   , RadioFX.API.Request
+                   , RadioFX.API.Types
   other-modules:     Paths_radiofx_tg_bot
   hs-source-dirs:    src
   build-depends:     base >= 4.7 && < 5
                    , telegram-bot-simple
                    , text
+                   , http-client
                    , http-conduit
                    , bytestring
                    , lens
                    , lens-aeson
-  ghc-options:       -Wall
+                   , mtl
+  ghc-options:       -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   default-language:  Haskell2010
                      
 executable radiofx-tg-bot
