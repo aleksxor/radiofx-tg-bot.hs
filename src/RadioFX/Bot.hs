@@ -28,7 +28,7 @@ data Status
 data StItem a = StItem Status a
   deriving (Show)
 
-data StationUser = StationUser
+newtype StationUser = StationUser Text
   deriving (Show)
 
 data Model
@@ -46,8 +46,9 @@ data Model
 data Action
   = DoNothing
   | WelcomeMessage
-  | ShowUser Text
-  | ShowStation Text
+  | StartUserMode Text
+  | InitUserMode StationUser [Station]
+  | StartStationMode Text
   | ArgumentExpected
   | WrongCommand
   deriving (Show)
@@ -81,9 +82,9 @@ handleUpdate _model =
   parseUpdate
     $   WelcomeMessage
     <$  command "start"
-    <|> singleArg ShowUser
+    <|> singleArg StartUserMode
     <$> command "user"
-    <|> singleArg ShowStation
+    <|> singleArg StartStationMode
     <$> command "station"
     <|> pure WrongCommand
  where
@@ -98,20 +99,26 @@ handleAction action model = case action of
   WelcomeMessage -> model <# do
     replyText startMessage
     pure DoNothing
-  ShowUser user -> model <# do
+  StartUserMode user -> model <# do
     mStations <- liftIO $ getUserStations user
     case mStations of
       Just ss -> do
-        replyText $ "User: '" <> user <> "' is a member of theese stations:"
+        replyText $ "User: '" <> user <> "' is a member of these stations:"
         replyText . Text.unlines $ getStation <$> ss
-      Nothing -> replyText $ "Could not fetch stations for: " <> user
-    pure DoNothing
-  ShowStation group -> model <# do
-    replyText $ "Show group: '" <> group <> "' members"
-    pure DoNothing
+        pure $ InitUserMode (StationUser user) ss
+      Nothing -> do
+        replyText $ "Could not fetch stations for: " <> user
+        pure DoNothing
+  StartStationMode group ->
+    StationMode { station = Station group, members = [] } <# do
+      replyText $ "Show group: '" <> group <> "' members"
+      pure DoNothing
   WrongCommand -> model <# do
     replyText "ERR: Unsupported command"
     pure DoNothing
   ArgumentExpected -> model <# do
     replyText "ERR: Command expects exactly one argument"
     pure DoNothing
+  InitUserMode user ss ->
+    UserMode { owner = user, stations = StItem Unchanged <$> ss }
+      <# pure DoNothing
