@@ -5,6 +5,7 @@ import           Control.Applicative            ( (<|>) )
 import           Control.Monad.Trans            ( liftIO )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
+import           Data.List.Split                ( chunksOf )
 
 import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , Eff(..)
@@ -34,13 +35,13 @@ data Status
   = Initial
   | Added
   | Removed
-  deriving (Show, Read)
+  deriving (Show, Read, Eq)
 
 data StItem a = StItem
   { getStatus :: Status
   , getStItem :: a
   }
-  deriving (Show, Read)
+  deriving (Show, Read, Eq)
 
 newtype StationUser = StationUser { getName :: Text }
   deriving (Show, Read)
@@ -69,6 +70,8 @@ data Action
   | InitUserMode Model
   | RemoveUserStation Station
   | AddUserStation Station
+  | RestoreUserStation Station
+  | AddUserStationReply
   | ShowUserMode
   -- Station Mode
   | StartStationMode Text
@@ -114,12 +117,24 @@ stationsAsInlineKeyboard model = case stations model of
 
 
 stationsInlineKeyboard :: [StItem Station] -> InlineKeyboardMarkup
-stationsInlineKeyboard =
-  InlineKeyboardMarkup . map (pure . stationInlineKeyboardButton)
+stationsInlineKeyboard items =
+  InlineKeyboardMarkup
+    $  chunksOf 2 (map stationInlineKeyboardButton items)
+    <> addButton
+ where
+  addButton = [[(actionButton "\x2795 Add station" (AddUserStationReply))]]
+
 
 stationInlineKeyboardButton :: StItem Station -> InlineKeyboardButton
-stationInlineKeyboardButton item =
-  actionButton (getStation $ getStItem item) DoNothing
+stationInlineKeyboardButton item = actionButton
+  (prefix <> getStation station')
+  action
+ where
+  station'         = getStItem item
+  (action, prefix) = case getStatus item of
+    Initial -> (RemoveUserStation station', "\x2705 ")
+    Added   -> (RemoveUserStation station', "\x2B05 ")
+    Removed -> (RestoreUserStation station', "\x274C ")
 
 handleUpdate :: Model -> Update -> Maybe Action
 handleUpdate _model =
@@ -130,8 +145,8 @@ handleUpdate _model =
     <$> command "user"
     <|> singleArg StartStationMode
     <$> command "station"
-    <|> pure WrongCommand
     <|> callbackQueryDataRead
+    <|> pure WrongCommand
  where
   singleArg :: (Text -> Action) -> Text -> Action
   singleArg action t = case Text.words t of
@@ -167,10 +182,13 @@ handleAction action model = case action of
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
         pure DoNothing
-  InitUserMode      model'   -> model' <# pure ShowUserMode
-  AddUserStation    station' -> pure model
-  RemoveUserStation station' -> pure model
-  ShowUserMode               -> model <# do
+  InitUserMode   model'   -> model' <# pure ShowUserMode
+  AddUserStation station' -> addUserStation station' model <# pure ShowUserMode
+  RemoveUserStation station' ->
+    removeUserStation station' model <# pure ShowUserMode
+  RestoreUserStation station' ->
+    restoreUserStation station' model <# pure ShowUserMode
+  ShowUserMode -> model <# do
     replyOrEdit $ stationsAsInlineKeyboard model
     pure DoNothing
 
@@ -182,3 +200,31 @@ handleAction action model = case action of
 
   AddStationMember    member' -> pure model
   RemoveStationMember member' -> pure model
+
+removeUserStation :: Station -> Model -> Model
+removeUserStation s UserMode { owner = o, stations = ss } = UserMode
+  { owner    = o
+  , stations = foldr removeSt [] ss
+  }
+ where
+  removeSt st@(StItem status s') ss'
+    | status == Added && s == s'   = ss'
+    | status == Initial && s == s' = StItem Removed s' : ss'
+    | otherwise                    = st : ss'
+removeUserStation _ m = m
+
+addUserStation :: Station -> Model -> Model
+addUserStation s UserMode { owner = o, stations = ss } =
+  UserMode { stations = StItem Added s : ss, owner = o }
+addUserStation _ _ = NoMode
+
+restoreUserStation :: Station -> Model -> Model
+restoreUserStation s UserMode { owner = o, stations = ss } = UserMode
+  { owner    = o
+  , stations = foldr restoreSt [] ss
+  }
+ where
+  restoreSt st@(StItem status s') ss'
+    | s == s' && status == Removed = StItem Initial s : ss'
+    | otherwise                    = st : ss'
+restoreUserStation _ _ = NoMode

@@ -1,8 +1,8 @@
+{-# LANGUAGE OverloadedStrings #-}
 module RadioFX.API.Request
   ( module RadioFX.API.Types
   , getUserStations
-  , addUserStation
-  , removeUserStation
+  , setUserStations
   )
 where
 
@@ -42,10 +42,4 @@ getUserStations owner = do
 
 setUserStations :: [Station] -> IO ()
 setUserStations = undefined
-
-addUserStation :: Station -> [Station]
-addUserStation = undefined
-
-removeUserStation :: Station -> [Station]
-removeUserStation = undefined
 
