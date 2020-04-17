@@ -13,8 +13,10 @@ import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , (<#)
                                                 , actionButton
                                                 , toEditMessage
+                                                , reply
                                                 , replyText
                                                 , replyOrEdit
+                                                , toReplyMessage
                                                 )
 import           Telegram.Bot.Simple.UpdateParser
                                                 ( command
@@ -188,6 +190,9 @@ handleAction action model = case action of
     removeUserStation station' model <# pure ShowUserMode
   RestoreUserStation station' ->
     restoreUserStation station' model <# pure ShowUserMode
+  AddUserStationReply -> model <# do
+    reply $ toReplyMessage "Enter station name:"
+    pure DoNothing
   ShowUserMode -> model <# do
     replyOrEdit $ stationsAsInlineKeyboard model
     pure DoNothing
