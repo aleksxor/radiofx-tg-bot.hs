@@ -10,6 +10,7 @@ import           Data.List.Split                ( chunksOf )
 import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , Eff(..)
                                                 , EditMessage(..)
+                                                , EditMessageId(..)
                                                 , (<#)
                                                 , actionButton
                                                 , toEditMessage
@@ -17,9 +18,12 @@ import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , replyText
                                                 , replyOrEdit
                                                 , toReplyMessage
+                                                , getEditMessageId
+                                                , replyMessageReplyToMessageId
                                                 )
 import           Telegram.Bot.Simple.UpdateParser
-                                                ( command
+                                                ( UpdateParser(..)
+                                                , command
                                                 , parseUpdate
                                                 , callbackQueryDataRead
                                                 )
@@ -73,7 +77,7 @@ data Action
   | RemoveUserStation Station
   | AddUserStation Station
   | RestoreUserStation Station
-  | AddUserStationReply
+  | AddUserStationCmd Text
   | ShowUserMode
   -- Station Mode
   | StartStationMode Text
@@ -119,13 +123,8 @@ stationsAsInlineKeyboard model = case stations model of
 
 
 stationsInlineKeyboard :: [StItem Station] -> InlineKeyboardMarkup
-stationsInlineKeyboard items =
-  InlineKeyboardMarkup
-    $  chunksOf 2 (map stationInlineKeyboardButton items)
-    <> addButton
- where
-  addButton = [[(actionButton "\x2795 Add station" (AddUserStationReply))]]
-
+stationsInlineKeyboard =
+  InlineKeyboardMarkup . chunksOf 2 . map stationInlineKeyboardButton
 
 stationInlineKeyboardButton :: StItem Station -> InlineKeyboardButton
 stationInlineKeyboardButton item = actionButton
@@ -138,15 +137,20 @@ stationInlineKeyboardButton item = actionButton
     Added   -> (RemoveUserStation station', "\x2B05 ")
     Removed -> (RestoreUserStation station', "\x274C ")
 
+orCommand :: Text -> UpdateParser Text
+orCommand cmd = command cmd <|> (command $ cmd <> "@RadioFXServiceBot")
+
 handleUpdate :: Model -> Update -> Maybe Action
 handleUpdate _model =
   parseUpdate
     $   WelcomeMessage
-    <$  command "start"
+    <$  orCommand "start"
     <|> singleArg StartUserMode
-    <$> command "user"
+    <$> orCommand "user"
     <|> singleArg StartStationMode
-    <$> command "station"
+    <$> orCommand "station"
+    <|> singleArg (AddUserStation . Station)
+    <$> orCommand "add"
     <|> callbackQueryDataRead
     <|> pure WrongCommand
  where
@@ -190,9 +194,6 @@ handleAction action model = case action of
     removeUserStation station' model <# pure ShowUserMode
   RestoreUserStation station' ->
     restoreUserStation station' model <# pure ShowUserMode
-  AddUserStationReply -> model <# do
-    reply $ toReplyMessage "Enter station name:"
-    pure DoNothing
   ShowUserMode -> model <# do
     replyOrEdit $ stationsAsInlineKeyboard model
     pure DoNothing
