@@ -5,21 +5,12 @@ import           Control.Applicative            ( (<|>) )
 import           Control.Monad.Trans            ( liftIO )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
-import           Data.List.Split                ( chunksOf )
 
 import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , Eff(..)
-                                                , EditMessage(..)
-                                                , EditMessageId(..)
                                                 , (<#)
-                                                , actionButton
-                                                , toEditMessage
-                                                , reply
                                                 , replyText
                                                 , replyOrEdit
-                                                , toReplyMessage
-                                                , getEditMessageId
-                                                , replyMessageReplyToMessageId
                                                 )
 import           Telegram.Bot.Simple.UpdateParser
                                                 ( UpdateParser(..)
@@ -27,63 +18,13 @@ import           Telegram.Bot.Simple.UpdateParser
                                                 , parseUpdate
                                                 , callbackQueryDataRead
                                                 )
-import           Telegram.Bot.API               ( Update(..)
-                                                , InlineKeyboardMarkup(..)
-                                                , InlineKeyboardButton(..)
-                                                , SomeReplyMarkup
-                                                  ( SomeInlineKeyboardMarkup
-                                                  )
-                                                )
+import           Telegram.Bot.API               ( Update(..) )
 
-import           RadioFX.API.Request
-
-data Status
-  = Initial
-  | Added
-  | Removed
-  deriving (Show, Read, Eq)
-
-data StItem a = StItem
-  { getStatus :: Status
-  , getStItem :: a
-  }
-  deriving (Show, Read, Eq)
-
-newtype StationUser = StationUser { getName :: Text }
-  deriving (Show, Read)
-
-data Model
-  = NoMode
-  | UserMode
-    { owner :: StationUser
-    , stations :: [StItem Station]
-    }
-  | StationMode
-    { station :: Station
-    , members :: [StItem StationUser]
-    }
-  deriving (Show, Read)
-
-data Action
-  = DoNothing
-  | WelcomeMessage
-  -- Errors
-  | ArgumentExpected
-  | WrongCommand
-  | WrongModeAction Action
-  -- User Mode
-  | StartUserMode Text
-  | InitUserMode Model
-  | RemoveUserStation Station
-  | AddUserStation Station
-  | RestoreUserStation Station
-  | AddUserStationCmd Text
-  | ShowUserMode
-  -- Station Mode
-  | StartStationMode Text
-  | AddStationMember StationUser
-  | RemoveStationMember StationUser
-  deriving (Show, Read)
+import           RadioFX.Types
+import           RadioFX.API
+import           RadioFX.Handler.Shared
+import           RadioFX.Handler.UserMode
+-- import           RadioFX.Handler.StationMode
 
 bot :: BotApp Model Action
 bot = BotApp { botInitialModel = NoMode
@@ -92,53 +33,8 @@ bot = BotApp { botInitialModel = NoMode
              , botJobs         = []
              }
 
-startMessage :: Text
-startMessage = Text.unlines
-  [ "Hello. I'm RadioFX Bot. "
-  , ""
-  , "I can help you to add new single- and multi-stations:"
-  , ""
-  , "Supported commands are:"
-  , "/user <owner@email.com> - show owner's station group(s)"
-  , "/station <stationGroup> - show stationGroup members"
-  , ""
-  , "There are two modes:"
-  , "  * User mode - show user's stations and inline keyboard"
-  , "    to add/remove user's stations"
-  , "  * Station mode - show station group members and commands"
-  , "    to add/remove members to the group"
-  ]
-
-
-stationsAsInlineKeyboard :: Model -> EditMessage
-stationsAsInlineKeyboard model = case stations model of
-  []    -> "No stations yet"
-  items -> (toEditMessage msg)
-    { editMessageReplyMarkup = Just
-      $ SomeInlineKeyboardMarkup (stationsInlineKeyboard items)
-    }
-   where
-    msg =
-      "User: '" <> getName (owner model) <> "' is a member of these stations:"
-
-
-stationsInlineKeyboard :: [StItem Station] -> InlineKeyboardMarkup
-stationsInlineKeyboard =
-  InlineKeyboardMarkup . chunksOf 2 . map stationInlineKeyboardButton
-
-stationInlineKeyboardButton :: StItem Station -> InlineKeyboardButton
-stationInlineKeyboardButton item = actionButton
-  (prefix <> getStation station')
-  action
- where
-  station'         = getStItem item
-  (action, prefix) = case getStatus item of
-    Initial -> (RemoveUserStation station', "\x2705 ")
-    Added   -> (RemoveUserStation station', "\x2B05 ")
-    Removed -> (RestoreUserStation station', "\x274C ")
-
 orCommand :: Text -> UpdateParser Text
-orCommand cmd = command cmd <|> (command $ cmd <> "@RadioFXServiceBot")
+orCommand cmd = command cmd <|> command (cmd <> "@RadioFXServiceBot")
 
 handleUpdate :: Model -> Update -> Maybe Action
 handleUpdate _model =
@@ -161,6 +57,7 @@ handleUpdate _model =
 
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
+  -- Common Actions
   DoNothing      -> pure model
   WelcomeMessage -> model <# do
     replyText startMessage
@@ -177,7 +74,7 @@ handleAction action model = case action of
     replyText "ERR: Command expects exactly one argument"
     pure DoNothing
 
-  -- User Mode
+  -- UserMode
   StartUserMode owner' -> model <# do
     mStations <- liftIO $ getUserStations owner'
     case mStations of
@@ -198,39 +95,10 @@ handleAction action model = case action of
     replyOrEdit $ stationsAsInlineKeyboard model
     pure DoNothing
 
-  -- Station Mode
+  -- StationMode
   StartStationMode station' ->
     StationMode { station = Station station', members = [] } <# do
       replyText $ "Show group: '" <> station' <> "' members"
       pure DoNothing
-
-  AddStationMember    member' -> pure model
-  RemoveStationMember member' -> pure model
-
-removeUserStation :: Station -> Model -> Model
-removeUserStation s UserMode { owner = o, stations = ss } = UserMode
-  { owner    = o
-  , stations = foldr removeSt [] ss
-  }
- where
-  removeSt st@(StItem status s') ss'
-    | status == Added && s == s'   = ss'
-    | status == Initial && s == s' = StItem Removed s' : ss'
-    | otherwise                    = st : ss'
-removeUserStation _ m = m
-
-addUserStation :: Station -> Model -> Model
-addUserStation s UserMode { owner = o, stations = ss } =
-  UserMode { stations = StItem Added s : ss, owner = o }
-addUserStation _ _ = NoMode
-
-restoreUserStation :: Station -> Model -> Model
-restoreUserStation s UserMode { owner = o, stations = ss } = UserMode
-  { owner    = o
-  , stations = foldr restoreSt [] ss
-  }
- where
-  restoreSt st@(StItem status s') ss'
-    | s == s' && status == Removed = StItem Initial s : ss'
-    | otherwise                    = st : ss'
-restoreUserStation _ _ = NoMode
+  AddStationMember    _ -> pure model
+  RemoveStationMember _ -> pure model

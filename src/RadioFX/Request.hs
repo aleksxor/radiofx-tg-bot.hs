@@ -1,10 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module RadioFX.API.Request
-  ( module RadioFX.API.Types
-  , getUserStations
-  , setUserStations
-  )
-where
+module RadioFX.Request where
 
 import           Network.HTTP.Simple            ( httpBS
                                                 , getResponseBody
@@ -18,7 +13,7 @@ import qualified Data.ByteString.Char8         as BS
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 
-import           RadioFX.API.Types
+import           RadioFX.Types
 
 baseURL :: Text
 baseURL = "https://api.radiofx.co/users"
@@ -33,8 +28,8 @@ splitGroups :: Text -> [Station]
 splitGroups = fmap Station . Text.splitOn ","
 
 getUserStations :: Text -> IO (Maybe [Station])
-getUserStations owner = do
-  json <- fetchJSON $ "/metadata?id=" <> owner
+getUserStations owner' = do
+  json <- fetchJSON $ "/metadata?id=" <> owner'
   return
     $   splitGroups
     <$> preview (key "data" . key "attributes" . key "stationGroup" . _String)
