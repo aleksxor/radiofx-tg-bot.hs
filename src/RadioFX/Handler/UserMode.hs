@@ -24,8 +24,11 @@ stationsAsInlineKeyboard model = case stations model of
 
 
 stationsInlineKeyboard :: [StItem Station] -> InlineKeyboardMarkup
-stationsInlineKeyboard =
-  InlineKeyboardMarkup . chunksOf 2 . map stationInlineKeyboardButton
+stationsInlineKeyboard items =
+  InlineKeyboardMarkup
+    $  chunksOf 2 (map stationInlineKeyboardButton items)
+    <> [[applyButton]]
+  where applyButton = actionButton "Apply" DoNothing
 
 stationInlineKeyboardButton :: StItem Station -> InlineKeyboardButton
 stationInlineKeyboardButton item = actionButton

@@ -14,7 +14,7 @@ startMessage = Text.unlines
   , "/start - show this help"
   , "/user <owner@email.com> - show owner's station group(s)"
   , "/station <stationGroup> - show stationGroup members"
-  , "/add <station|user> - add station or user depending on the mode"
+  , "/add <station|user> - add a station or a user depending on the mode"
   , ""
   , "There are two modes:"
   , "  * User mode - show user's stations and inline keyboard"
