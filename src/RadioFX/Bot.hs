@@ -22,7 +22,7 @@ import           Telegram.Bot.API               ( Update(..) )
 
 import           RadioFX.Types
 import           RadioFX.API
-import           RadioFX.Handler.Shared
+import           RadioFX.Handler.Common
 import           RadioFX.Handler.UserMode
 -- import           RadioFX.Handler.StationMode
 

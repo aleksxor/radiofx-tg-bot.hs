@@ -26,7 +26,7 @@ library
                    , RadioFX.API
                    , RadioFX.Request
                    , RadioFX.Types
-                   , RadioFX.Handler.Shared
+                   , RadioFX.Handler.Common
                    , RadioFX.Handler.UserMode
                    , RadioFX.Handler.StationMode
   other-modules:     Paths_radiofx_tg_bot
