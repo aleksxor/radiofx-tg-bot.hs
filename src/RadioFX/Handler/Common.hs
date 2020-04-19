@@ -4,6 +4,19 @@ module RadioFX.Handler.Common where
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 
+import           Telegram.Bot.Simple            ( EditMessage(..)
+                                                , actionButton
+                                                , toEditMessage
+                                                )
+import           Telegram.Bot.API               ( SomeReplyMarkup
+                                                  ( SomeInlineKeyboardMarkup
+                                                  )
+                                                , InlineKeyboardMarkup(..)
+                                                , InlineKeyboardButton(..)
+                                                )
+
+import           RadioFX.Types
+
 startMessage :: Text
 startMessage = Text.unlines
   [ "Hello. I'm RadioFX Bot. "
@@ -23,3 +36,13 @@ startMessage = Text.unlines
   , "    to add/remove members to the group"
   ]
 
+confirmActions :: Model -> EditMessage
+confirmActions model = (toEditMessage "Apply")
+  { editMessageReplyMarkup = Just
+                             . SomeInlineKeyboardMarkup
+                             . InlineKeyboardMarkup
+                             $ [[btnYes, btnNo]]
+  }
+ where
+  btnYes = actionButton "Yes" DoNothing
+  btnNo  = actionButton "No" ShowUserMode

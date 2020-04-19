@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 module RadioFX.Types where
 
 import           Data.Text                      ( Text )
@@ -15,26 +14,41 @@ data StItem a = StItem
   }
   deriving (Show, Read, Eq)
 
-newtype Station = Station {getStation :: Text} deriving (Show, Read, Eq)
+class NamedItem a where
+  getName :: a -> Text
 
-newtype StationUser = StationUser { getName :: Text }
-  deriving (Show, Read)
+newtype Station
+  = Station Text
+  deriving (Show, Read, Eq)
+
+newtype User
+  = User Text
+  deriving (Show, Read, Eq)
+
+instance NamedItem User where
+  getName (User s) = s
+
+instance NamedItem Station where
+  getName (Station s) = s
+
+data Mode a b = Mode { root :: a, items :: [StItem b] }
+
+type UserMode = Mode User Station
+type StationMode = Mode Station User
 
 data Model
   = NoMode
   | UserMode
-    { owner :: StationUser
-    , stations :: [StItem Station]
-    }
   | StationMode
-    { station :: Station
-    , members :: [StItem StationUser]
-    }
   deriving (Show, Read)
 
 data Action
   = DoNothing
   | WelcomeMessage
+  | AddItem Text
+  | RemoveItem Text
+  | RestoreItem Text
+  | ConfirmApply
   -- Errors
   | ArgumentExpected
   | WrongCommand
@@ -42,13 +56,10 @@ data Action
   -- User Mode
   | StartUserMode Text
   | InitUserMode Model
-  | RemoveUserStation Station
-  | AddUserStation Station
-  | RestoreUserStation Station
   | ShowUserMode
   -- Station Mode
   | StartStationMode Text
-  | AddStationMember StationUser
-  | RemoveStationMember StationUser
+  | InitStationMode Model
+  | ShowStationMode
   deriving (Show, Read)
 

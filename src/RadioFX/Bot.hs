@@ -11,6 +11,7 @@ import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , (<#)
                                                 , replyText
                                                 , replyOrEdit
+                                                , editUpdateMessage
                                                 )
 import           Telegram.Bot.Simple.UpdateParser
                                                 ( UpdateParser(..)
@@ -45,7 +46,7 @@ handleUpdate _model =
     <$> orCommand "user"
     <|> singleArg StartStationMode
     <$> orCommand "station"
-    <|> singleArg (AddUserStation . Station)
+    <|> singleArg AddItem
     <$> orCommand "add"
     <|> callbackQueryDataRead
     <|> pure WrongCommand
@@ -61,6 +62,9 @@ handleAction action model = case action of
   DoNothing      -> pure model
   WelcomeMessage -> model <# do
     replyText startMessage
+    pure DoNothing
+  ConfirmApply -> model <# do
+    editUpdateMessage (confirmActions model)
     pure DoNothing
 
   -- Errors
@@ -78,26 +82,24 @@ handleAction action model = case action of
   StartUserMode owner' -> model <# do
     mStations <- liftIO $ getUserStations owner'
     case mStations of
-      Just ss -> pure . InitUserMode $ UserMode
-        { owner    = StationUser owner'
-        , stations = StItem Initial <$> ss
-        }
+      Just ss -> pure . InitUserMode $ UserMode { root  = User owner'
+                                                , items = StItem Initial <$> ss
+                                                }
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
         pure DoNothing
-  InitUserMode   model'   -> model' <# pure ShowUserMode
-  AddUserStation station' -> addUserStation station' model <# pure ShowUserMode
-  RemoveUserStation station' ->
-    removeUserStation station' model <# pure ShowUserMode
+  InitUserMode      model'   -> model' <# pure ShowUserMode
+  AddUserStation    station' -> addItem station' model <# pure ShowUserMode
+  RemoveUserStation station' -> removeItem station' model <# pure ShowUserMode
   RestoreUserStation station' ->
-    restoreUserStation station' model <# pure ShowUserMode
+    restoreItem station' model <# pure ShowUserMode
   ShowUserMode -> model <# do
     replyOrEdit $ stationsAsInlineKeyboard model
     pure DoNothing
 
   -- StationMode
   StartStationMode station' ->
-    StationMode { station = Station station', members = [] } <# do
+    StationMode { root = Station station', items = [] } <# do
       replyText $ "Show group: '" <> station' <> "' members"
       pure DoNothing
   AddStationMember    _ -> pure model

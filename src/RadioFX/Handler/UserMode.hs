@@ -1,70 +1,72 @@
 {-# LANGUAGE OverloadedStrings #-}
 module RadioFX.Handler.UserMode where
 
+import           Data.Text                      ( Text )
 import           Data.List.Split                ( chunksOf )
 
 import           Telegram.Bot.Simple            ( EditMessage(..)
                                                 , actionButton
                                                 , toEditMessage
                                                 )
-import           Telegram.Bot.API
+import           Telegram.Bot.API               ( SomeReplyMarkup
+                                                  ( SomeInlineKeyboardMarkup
+                                                  )
+                                                , InlineKeyboardMarkup(..)
+                                                , InlineKeyboardButton(..)
+                                                )
 
 import           RadioFX.Types
 
-stationsAsInlineKeyboard :: Model -> EditMessage
-stationsAsInlineKeyboard model = case stations model of
+itemsAsInlineKeyboard :: UserMode -> EditMessage
+itemsAsInlineKeyboard Mode { root = o, items = ss } = case ss of
   []    -> "No stations yet"
   items -> (toEditMessage msg)
     { editMessageReplyMarkup = Just
-      $ SomeInlineKeyboardMarkup (stationsInlineKeyboard items)
+      $ SomeInlineKeyboardMarkup (itemsInlineKeyboard items)
     }
-   where
-    msg =
-      "User: '" <> getName (owner model) <> "' is a member of these stations:"
+    where msg = "User: '" <> getName o <> "' is a member of these stations:"
 
 
-stationsInlineKeyboard :: [StItem Station] -> InlineKeyboardMarkup
-stationsInlineKeyboard items =
+itemsInlineKeyboard :: [StItem Station] -> InlineKeyboardMarkup
+itemsInlineKeyboard items =
   InlineKeyboardMarkup
-    $  chunksOf 2 (map stationInlineKeyboardButton items)
+    $  chunksOf 2 (map itemInlineKeyboardButton items)
     <> [[applyButton]]
-  where applyButton = actionButton "Apply" DoNothing
+  where applyButton = actionButton "Apply" ConfirmApply
 
-stationInlineKeyboardButton :: StItem Station -> InlineKeyboardButton
-stationInlineKeyboardButton item = actionButton
-  (prefix <> getStation station')
-  action
+itemInlineKeyboardButton :: NamedItem a => StItem a -> InlineKeyboardButton
+itemInlineKeyboardButton item = actionButton (prefix <> getName station')
+                                             action
  where
-  station'         = getStItem item
+  station'         = getName (getStItem item)
   (action, prefix) = case getStatus item of
-    Initial -> (RemoveUserStation station', "\x2705 ")
-    Added   -> (RemoveUserStation station', "\x2B05 ")
-    Removed -> (RestoreUserStation station', "\x274C ")
+    Initial -> (RemoveItem . getName $ station', "\x2705 ")
+    Added   -> (RemoveItem . getName $ station', "\x2B05 ")
+    Removed -> (RestoreItem . getName $ station', "\x274C ")
 
-removeUserStation :: Station -> Model -> Model
-removeUserStation s UserMode { owner = o, stations = ss } = UserMode
-  { owner    = o
-  , stations = foldr removeSt [] ss
+removeItem :: Text -> Model -> Model
+removeItem s Mode { root = o, items = ss } = Mode { root  = o
+                                                  , items = foldr remove [] ss
+                                                  }
+ where
+  remove st@(StItem status s') ss'
+    | status == Added && s == getName s'   = ss'
+    | status == Initial && s == getName s' = StItem Removed s' : ss'
+    | otherwise                            = st : ss'
+removeItem _ _ = NoMode
+
+addItem :: Text -> Model -> Model
+addItem s Mode { root = o, items = ss } =
+  Mode { items = StItem Added s : ss, root = o }
+addItem _ _ = NoMode
+
+restoreItem :: Text -> Model -> Model
+restoreItem s Mode { root = o, items = ss } = Mode
+  { root  = o
+  , items = foldr restore [] ss
   }
  where
-  removeSt st@(StItem status s') ss'
-    | status == Added && s == s'   = ss'
-    | status == Initial && s == s' = StItem Removed s' : ss'
-    | otherwise                    = st : ss'
-removeUserStation _ m = m
-
-addUserStation :: Station -> Model -> Model
-addUserStation s UserMode { owner = o, stations = ss } =
-  UserMode { stations = StItem Added s : ss, owner = o }
-addUserStation _ _ = NoMode
-
-restoreUserStation :: Station -> Model -> Model
-restoreUserStation s UserMode { owner = o, stations = ss } = UserMode
-  { owner    = o
-  , stations = foldr restoreSt [] ss
-  }
- where
-  restoreSt st@(StItem status s') ss'
-    | s == s' && status == Removed = StItem Initial s : ss'
-    | otherwise                    = st : ss'
-restoreUserStation _ _ = NoMode
+  restore st@(StItem status s') ss'
+    | s == getName s' && status == Removed = StItem Initial s : ss'
+    | otherwise                            = st : ss'
+restoreItem _ _ = NoMode
