@@ -56,6 +56,15 @@ handleUpdate _model =
     [arg] -> action arg
     _     -> ArgumentExpected
 
+manipulateItems
+  :: Model -> (a -> ItemMode b a -> ItemMode b a) -> Eff Action Model
+manipulateItems model action item = case model of
+  UserMode items' ->
+    UserMode (action (Station item) items') <# pure ShowUserMode
+  StationMode items' ->
+    StationMode (action (User item) items') <# pure ShowUserMode
+  _ -> model <# pure (WrongModeAction)
+
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
   -- Common Actions
@@ -67,8 +76,12 @@ handleAction action model = case action of
     editUpdateMessage (confirmActions model)
     pure DoNothing
 
+  AddItem     item -> manipulateItems model addItem item
+  RemoveItem  item -> removeItem item model <# pure ShowUserMode
+  RestoreItem item -> restoreItem item model <# pure ShowUserMode
+
   -- Errors
-  WrongCommand -> model <# do
+  WrongCommand     -> model <# do
     replyText "ERR: Unsupported command"
     pure DoNothing
   WrongModeAction action' -> model <# do
@@ -82,25 +95,22 @@ handleAction action model = case action of
   StartUserMode owner' -> model <# do
     mStations <- liftIO $ getUserStations owner'
     case mStations of
-      Just ss -> pure . InitUserMode $ UserMode { root  = User owner'
-                                                , items = StItem Initial <$> ss
-                                                }
+      Just ss ->
+        pure
+          . InitUserMode
+          . UserMode
+          $ (ItemMode { root = User owner', items = StItem Initial <$> ss })
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
         pure DoNothing
-  InitUserMode      model'   -> model' <# pure ShowUserMode
-  AddUserStation    station' -> addItem station' model <# pure ShowUserMode
-  RemoveUserStation station' -> removeItem station' model <# pure ShowUserMode
-  RestoreUserStation station' ->
-    restoreItem station' model <# pure ShowUserMode
-  ShowUserMode -> model <# do
-    replyOrEdit $ stationsAsInlineKeyboard model
+  InitUserMode model' -> model' <# pure ShowUserMode
+  ShowUserMode        -> model <# do
+    replyOrEdit $ itemsAsInlineKeyboard model
     pure DoNothing
 
   -- StationMode
   StartStationMode station' ->
-    StationMode { root = Station station', items = [] } <# do
+    StationMode (ItemMode { root = Station station', items = [] }) <# do
       replyText $ "Show group: '" <> station' <> "' members"
       pure DoNothing
-  AddStationMember    _ -> pure model
-  RemoveStationMember _ -> pure model
+  ShowStationMode -> pure model

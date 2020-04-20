@@ -31,15 +31,15 @@ instance NamedItem User where
 instance NamedItem Station where
   getName (Station s) = s
 
-data Mode a b = Mode { root :: a, items :: [StItem b] }
-
-type UserMode = Mode User Station
-type StationMode = Mode Station User
+data ItemMode a b = ItemMode
+  {  root :: a
+  , items :: [StItem b]
+  } deriving (Show, Read)
 
 data Model
   = NoMode
-  | UserMode
-  | StationMode
+  | UserMode (ItemMode User Station)
+  | StationMode (ItemMode Station User)
   deriving (Show, Read)
 
 data Action

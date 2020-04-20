@@ -17,56 +17,54 @@ import           Telegram.Bot.API               ( SomeReplyMarkup
 
 import           RadioFX.Types
 
-itemsAsInlineKeyboard :: UserMode -> EditMessage
-itemsAsInlineKeyboard Mode { root = o, items = ss } = case ss of
-  []    -> "No stations yet"
-  items -> (toEditMessage msg)
+itemsAsInlineKeyboard :: Model -> EditMessage
+itemsAsInlineKeyboard (UserMode ItemMode { root = o, items = ss }) = case ss of
+  []     -> "No stations yet"
+  items' -> (toEditMessage msg)
     { editMessageReplyMarkup = Just
-      $ SomeInlineKeyboardMarkup (itemsInlineKeyboard items)
+      $ SomeInlineKeyboardMarkup (itemsInlineKeyboard items')
     }
     where msg = "User: '" <> getName o <> "' is a member of these stations:"
+itemsAsInlineKeyboard _ = toEditMessage "ERR: Wrong mode"
 
 
 itemsInlineKeyboard :: [StItem Station] -> InlineKeyboardMarkup
-itemsInlineKeyboard items =
+itemsInlineKeyboard items' =
   InlineKeyboardMarkup
-    $  chunksOf 2 (map itemInlineKeyboardButton items)
+    $  chunksOf 2 (map itemInlineKeyboardButton items')
     <> [[applyButton]]
   where applyButton = actionButton "Apply" ConfirmApply
 
 itemInlineKeyboardButton :: NamedItem a => StItem a -> InlineKeyboardButton
-itemInlineKeyboardButton item = actionButton (prefix <> getName station')
-                                             action
+itemInlineKeyboardButton item = actionButton (prefix <> station') action
  where
   station'         = getName (getStItem item)
   (action, prefix) = case getStatus item of
-    Initial -> (RemoveItem . getName $ station', "\x2705 ")
-    Added   -> (RemoveItem . getName $ station', "\x2B05 ")
-    Removed -> (RestoreItem . getName $ station', "\x274C ")
+    Initial -> (RemoveItem station', "\x2705 ")
+    Added   -> (RemoveItem station', "\x2B05 ")
+    Removed -> (RestoreItem station', "\x274C ")
 
-removeItem :: Text -> Model -> Model
-removeItem s Mode { root = o, items = ss } = Mode { root  = o
-                                                  , items = foldr remove [] ss
-                                                  }
+removeItem :: Eq b => b -> ItemMode a b -> ItemMode a b
+removeItem s ItemMode { root = o, items = ss } = ItemMode
+  { root  = o
+  , items = foldr remove [] ss
+  }
  where
   remove st@(StItem status s') ss'
-    | status == Added && s == getName s'   = ss'
-    | status == Initial && s == getName s' = StItem Removed s' : ss'
-    | otherwise                            = st : ss'
-removeItem _ _ = NoMode
+    | status == Added && s == s'   = ss'
+    | status == Initial && s == s' = StItem Removed s' : ss'
+    | otherwise                    = st : ss'
 
-addItem :: Text -> Model -> Model
-addItem s Mode { root = o, items = ss } =
-  Mode { items = StItem Added s : ss, root = o }
-addItem _ _ = NoMode
+addItem :: b -> ItemMode a b -> ItemMode a b
+addItem s ItemMode { root = o, items = ss } =
+  ItemMode { items = StItem Added s : ss, root = o }
 
-restoreItem :: Text -> Model -> Model
-restoreItem s Mode { root = o, items = ss } = Mode
+restoreItem :: Eq b => b -> ItemMode a b -> ItemMode a b
+restoreItem s ItemMode { root = o, items = ss } = ItemMode
   { root  = o
   , items = foldr restore [] ss
   }
  where
   restore st@(StItem status s') ss'
-    | s == getName s' && status == Removed = StItem Initial s : ss'
-    | otherwise                            = st : ss'
-restoreItem _ _ = NoMode
+    | s == s' && status == Removed = StItem Initial s : ss'
+    | otherwise                    = st : ss'
