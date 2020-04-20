@@ -8,38 +8,20 @@ data Status
   | Removed
   deriving (Show, Read, Eq)
 
-data StItem a = StItem
+data StItem = StItem
   { getStatus :: Status
-  , getStItem :: a
+  , getStItem :: Item
   }
   deriving (Show, Read, Eq)
 
-class NamedItem a where
-  getName :: a -> Text
-
-newtype Station
-  = Station Text
-  deriving (Show, Read, Eq)
-
-newtype User
+data Item
   = User Text
+  | Station Text
   deriving (Show, Read, Eq)
-
-instance NamedItem User where
-  getName (User s) = s
-
-instance NamedItem Station where
-  getName (Station s) = s
-
-data ItemMode a b = ItemMode
-  {  root :: a
-  , items :: [StItem b]
-  } deriving (Show, Read)
 
 data Model
   = NoMode
-  | UserMode (ItemMode User Station)
-  | StationMode (ItemMode Station User)
+  | ItemMode { root :: Item, items :: [StItem] }
   deriving (Show, Read)
 
 data Action

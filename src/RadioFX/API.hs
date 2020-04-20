@@ -28,10 +28,10 @@ fetchJSON uri = do
   res <- httpBS req
   return $ getResponseBody res
 
-splitGroups :: Text -> [Station]
+splitGroups :: Text -> [Item]
 splitGroups = fmap Station . Text.splitOn ","
 
-getUserStations :: Text -> IO (Maybe [Station])
+getUserStations :: Text -> IO (Maybe [Item])
 getUserStations owner' = do
   json <- fetchJSON $ "/metadata?id=" <> owner'
   return
@@ -39,6 +39,6 @@ getUserStations owner' = do
     <$> preview (key "data" . key "attributes" . key "stationGroup" . _String)
                 json
 
-setUserStations :: [Station] -> IO ()
+setUserStations :: [Item] -> IO ()
 setUserStations = undefined
 

@@ -56,14 +56,11 @@ handleUpdate _model =
     [arg] -> action arg
     _     -> ArgumentExpected
 
-manipulateItems
-  :: Model -> (a -> ItemMode b a -> ItemMode b a) -> Eff Action Model
-manipulateItems model action item = case model of
-  UserMode items' ->
-    UserMode (action (Station item) items') <# pure ShowUserMode
-  StationMode items' ->
-    StationMode (action (User item) items') <# pure ShowUserMode
-  _ -> model <# pure (WrongModeAction)
+manipulateItems :: Model -> (Item -> Model -> Model) -> Text -> Eff Action Model
+manipulateItems model@ItemMode { root = root' } action text = case root' of
+  User    _ -> action (Station text) model <# pure ShowUserMode
+  Station _ -> action (User text) model <# pure ShowUserMode
+manipulateItems model _ _ = model <# pure WrongCommand
 
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
@@ -77,8 +74,8 @@ handleAction action model = case action of
     pure DoNothing
 
   AddItem     item -> manipulateItems model addItem item
-  RemoveItem  item -> removeItem item model <# pure ShowUserMode
-  RestoreItem item -> restoreItem item model <# pure ShowUserMode
+  RemoveItem  item -> manipulateItems model removeItem item
+  RestoreItem item -> manipulateItems model restoreItem item
 
   -- Errors
   WrongCommand     -> model <# do
@@ -98,7 +95,6 @@ handleAction action model = case action of
       Just ss ->
         pure
           . InitUserMode
-          . UserMode
           $ (ItemMode { root = User owner', items = StItem Initial <$> ss })
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
@@ -110,7 +106,7 @@ handleAction action model = case action of
 
   -- StationMode
   StartStationMode station' ->
-    StationMode (ItemMode { root = Station station', items = [] }) <# do
+    ItemMode { root = Station station', items = [] } <# do
       replyText $ "Show group: '" <> station' <> "' members"
       pure DoNothing
   ShowStationMode -> pure model
