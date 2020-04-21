@@ -24,11 +24,9 @@ source-repository head
 library
   exposed-modules:   RadioFX.Bot
                    , RadioFX.API
-                   , RadioFX.Request
                    , RadioFX.Types
-                   , RadioFX.Handler.Common
-                   , RadioFX.Handler.UserMode
-                   , RadioFX.Handler.StationMode
+                   , RadioFX.Items
+                   , RadioFX.Render
   other-modules:     Paths_radiofx_tg_bot
   hs-source-dirs:    src
   build-depends:     base >= 4.7 && < 5

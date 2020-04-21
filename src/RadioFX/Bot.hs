@@ -23,9 +23,8 @@ import           Telegram.Bot.API               ( Update(..) )
 
 import           RadioFX.Types
 import           RadioFX.API
-import           RadioFX.Handler.Common
-import           RadioFX.Handler.UserMode
--- import           RadioFX.Handler.StationMode
+import           RadioFX.Render
+import           RadioFX.Items
 
 bot :: BotApp Model Action
 bot = BotApp { botInitialModel = NoMode
@@ -58,8 +57,8 @@ handleUpdate _model =
 
 manipulateItems :: Model -> (Item -> Model -> Model) -> Text -> Eff Action Model
 manipulateItems model@ItemMode { root = root' } action text = case root' of
-  User    _ -> action (Station text) model <# pure ShowUserMode
-  Station _ -> action (User text) model <# pure ShowUserMode
+  User    _ -> action (Station text) model <# pure RenderModel
+  Station _ -> action (User text) model <# pure RenderModel
 manipulateItems model _ _ = model <# pure WrongCommand
 
 handleAction :: Action -> Model -> Eff Action Model
@@ -99,14 +98,17 @@ handleAction action model = case action of
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
         pure DoNothing
-  InitUserMode model' -> model' <# pure ShowUserMode
-  ShowUserMode        -> model <# do
-    replyOrEdit $ itemsAsInlineKeyboard model
-    pure DoNothing
+  InitUserMode model' -> model' <# pure RenderModel
 
   -- StationMode
   StartStationMode station' ->
     ItemMode { root = Station station', items = [] } <# do
       replyText $ "Show group: '" <> station' <> "' members"
       pure DoNothing
-  ShowStationMode -> pure model
+  InitStationMode _ -> pure model
+
+  -- Render
+  RenderModel       -> model <# do
+    replyOrEdit $ itemsAsInlineKeyboard model
+    pure DoNothing
+

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module RadioFX.Handler.Common where
+module RadioFX.Items where
 
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
@@ -45,7 +45,7 @@ confirmActions model = (toEditMessage "Apply")
   }
  where
   btnYes = actionButton "Yes" DoNothing
-  btnNo  = actionButton "No" ShowUserMode
+  btnNo  = actionButton "No" RenderModel
 
 getItemName :: Item -> Text
 getItemName (User    name) = name

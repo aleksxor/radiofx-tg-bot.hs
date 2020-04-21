@@ -27,9 +27,11 @@ data Model
 data Action
   = DoNothing
   | WelcomeMessage
+  -- Common
   | AddItem Text
   | RemoveItem Text
   | RestoreItem Text
+  | RenderModel
   | ConfirmApply
   -- Errors
   | ArgumentExpected
@@ -38,10 +40,8 @@ data Action
   -- User Mode
   | StartUserMode Text
   | InitUserMode Model
-  | ShowUserMode
   -- Station Mode
   | StartStationMode Text
   | InitStationMode Model
-  | ShowStationMode
   deriving (Show, Read)
 
