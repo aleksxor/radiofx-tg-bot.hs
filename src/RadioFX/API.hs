@@ -11,7 +11,9 @@ import           Network.HTTP.Simple            ( httpBS
                                                 , getResponseBody
                                                 )
 import           Network.HTTP.Client            ( parseRequest )
-import           Control.Lens                   ( preview )
+import           Control.Lens                   ( preview
+                                                , (^..)
+                                                )
 import           Data.Aeson.Lens                ( key
                                                 , values
                                                 , _String
@@ -42,17 +44,17 @@ getUserStations owner' = do
     <$> preview (key "data" . key "attributes" . key "stationGroup" . _String)
                 json
 
-getStationMembers :: Text -> IO (Maybe [Item])
+getStationMembers :: Text -> IO [Item]
 getStationMembers station = do
   json <-
     fetchJSON
     $  "/list?limit=100&filter=%7B\"stationGroup\":\""
     <> station
     <> "\"%7D"
-  pure $ parseStation json
-
-parseStation = preview (key "data" . values . _String) -- (key "attributes" . key "stationEmail" . _String))
-
+  pure $ User <$> json ^.. allStations
+ where
+  allStations =
+    key "data" . values . key "attributes" . key "stationEmail" . _String
 
 setUserStations :: Model -> IO ()
 setUserStations = undefined

@@ -91,24 +91,25 @@ handleAction action model = case action of
   StartUserMode owner' -> model <# do
     mStations <- liftIO $ getUserStations owner'
     case mStations of
-      Just ss ->
-        pure
-          . InitUserMode
-          $ (ItemMode { root = User owner', items = StItem Initial <$> ss })
+      Just ss -> pure . InitUserMode $ ItemMode { root  = User owner'
+                                                , items = StItem Initial <$> ss
+                                                }
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
         pure DoNothing
-  InitUserMode model' -> model' <# pure RenderModel
+  InitUserMode     model'   -> model' <# pure RenderModel
 
   -- StationMode
-  StartStationMode station' ->
-    ItemMode { root = Station station', items = [] } <# do
-      replyText $ "Show group: '" <> station' <> "' members"
-      pure DoNothing
-  InitStationMode _ -> pure model
+  StartStationMode station' -> model <# do
+    members <- liftIO $ getStationMembers station'
+    pure . InitStationMode $ ItemMode { root  = Station station'
+                                      , items = StItem Initial <$> members
+                                      }
+
+  InitStationMode model' -> model' <# pure RenderModel
 
   -- Render
-  RenderModel       -> model <# do
+  RenderModel            -> model <# do
     replyOrEdit $ itemsAsInlineKeyboard model
     pure DoNothing
 

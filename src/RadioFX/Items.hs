@@ -65,7 +65,7 @@ removeItem _ model = model
 
 addItem :: Item -> Model -> Model
 addItem s ItemMode { root = o, items = ss } =
-  ItemMode { items = StItem Added s : ss, root = o }
+  ItemMode { items = ss <> [StItem Added s], root = o }
 addItem _ model = model
 
 restoreItem :: Item -> Model -> Model
