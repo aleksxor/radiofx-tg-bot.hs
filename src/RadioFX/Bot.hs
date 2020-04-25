@@ -55,12 +55,6 @@ handleUpdate _model =
     [arg] -> action arg
     _     -> ArgumentExpected
 
-manipulateItems :: Model -> (Item -> Model -> Model) -> Text -> Eff Action Model
-manipulateItems model@ItemMode { root = root' } action text = case root' of
-  User    _ -> action (Station text) model <# pure RenderModel
-  Station _ -> action (User text) model <# pure RenderModel
-manipulateItems model _ _ = model <# pure WrongCommand
-
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
   -- Common Actions

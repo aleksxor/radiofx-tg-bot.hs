@@ -2,50 +2,11 @@
 module RadioFX.Items where
 
 import           Data.Text                      ( Text )
-import qualified Data.Text                     as Text
-
-import           Telegram.Bot.Simple            ( EditMessage(..)
-                                                , actionButton
-                                                , toEditMessage
-                                                )
-import           Telegram.Bot.API               ( SomeReplyMarkup
-                                                  ( SomeInlineKeyboardMarkup
-                                                  )
-                                                , InlineKeyboardMarkup(..)
-                                                , InlineKeyboardButton(..)
+import           Telegram.Bot.Simple            ( Eff(..)
+                                                , (<#)
                                                 )
 
 import           RadioFX.Types
-
-startMessage :: Text
-startMessage = Text.unlines
-  [ "Hello. I'm RadioFX Bot. "
-  , ""
-  , "I can help you to add new single- and multi-stations:"
-  , ""
-  , "Supported commands are:"
-  , "/start - show this help"
-  , "/user <owner@email.com> - show owner's station group(s)"
-  , "/station <stationGroup> - show stationGroup members"
-  , "/add <station|user> - add a station or a user depending on the mode"
-  , ""
-  , "There are two modes:"
-  , "  * User mode - show user's stations and inline keyboard"
-  , "    to add/remove user's stations"
-  , "  * Station mode - show station group members and commands"
-  , "    to add/remove members to the group"
-  ]
-
-confirmActions :: Model -> EditMessage
-confirmActions model = (toEditMessage "Apply")
-  { editMessageReplyMarkup = Just
-                             . SomeInlineKeyboardMarkup
-                             . InlineKeyboardMarkup
-                             $ [[btnYes, btnNo]]
-  }
- where
-  btnYes = actionButton "Yes" DoNothing
-  btnNo  = actionButton "No" RenderModel
 
 getItemName :: Item -> Text
 getItemName (User    name) = name
@@ -78,3 +39,10 @@ restoreItem s ItemMode { root = o, items = ss } = ItemMode
     | s == s' && status == Removed = StItem Initial s : ss'
     | otherwise                    = st : ss'
 restoreItem _ model = model
+
+manipulateItems :: Model -> (Item -> Model -> Model) -> Text -> Eff Action Model
+manipulateItems model@ItemMode { root = root' } action text = case root' of
+  User    _ -> action (Station text) model <# pure RenderModel
+  Station _ -> action (User text) model <# pure RenderModel
+manipulateItems model _ _ = model <# pure WrongCommand
+

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module RadioFX.Render where
 
+import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 import           Telegram.Bot.Simple            ( EditMessage(..)
                                                 , actionButton
@@ -16,9 +17,38 @@ import           Telegram.Bot.API               ( SomeReplyMarkup
 import           RadioFX.Types
 import           RadioFX.Items
 
+startMessage :: Text
+startMessage = Text.unlines
+  [ "Hello. I'm RadioFX Bot. "
+  , ""
+  , "I can help you to add new single- and multi-stations:"
+  , ""
+  , "Supported commands are:"
+  , "/start - show this help"
+  , "/user <owner@email.com> - show owner's station group(s)"
+  , "/station <stationGroup> - show stationGroup members"
+  , "/add <station|user> - add a station or a user depending on the mode"
+  , ""
+  , "There are two modes:"
+  , "  * User mode - show user's stations and inline keyboard"
+  , "    to add/remove user's stations"
+  , "  * Station mode - show station group members and commands"
+  , "    to add/remove members to the group"
+  ]
+
+confirmActions :: Model -> EditMessage
+confirmActions model = (toEditMessage "Apply") { editMessageReplyMarkup = markup
+                                               }
+ where
+  editMsg = itemsAsInlineKeyboard model
+  markup  = editMessageReplyMarkup editMsg
+  btnYes  = actionButton "Yes" DoNothing
+  btnNo   = actionButton "No" RenderModel
+
+
 itemsAsInlineKeyboard :: Model -> EditMessage
 itemsAsInlineKeyboard ItemMode { root = o, items = ss } = case ss of
-  []     -> "No stations yet"
+  []     -> "Has no members"
   items' -> (toEditMessage msg)
     { editMessageReplyMarkup = Just
       $ SomeInlineKeyboardMarkup (itemsInlineKeyboard items')

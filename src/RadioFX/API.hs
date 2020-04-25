@@ -1,11 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module RadioFX.API
-  ( getUserStations
-  , setUserStations
-  , getStationMembers
-  , setStationMembers
-  )
-where
+module RadioFX.API where
 
 import           Network.HTTP.Simple            ( httpBS
                                                 , getResponseBody
@@ -23,6 +17,7 @@ import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 
 import           RadioFX.Types
+import           RadioFX.Items
 
 baseURL :: Text
 baseURL = "https://api.radiofx.co/users"
@@ -55,6 +50,12 @@ getStationMembers station = do
  where
   allStations =
     key "data" . values . key "attributes" . key "stationEmail" . _String
+
+collectStations :: [StItem] -> Text
+collectStations = Text.intercalate "," . collect
+ where
+  collect   = fmap (getItemName . getStItem) . filter woRemoved
+  woRemoved = (/= Removed) . getStatus
 
 setUserStations :: Model -> IO ()
 setUserStations = undefined
