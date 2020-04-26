@@ -27,11 +27,12 @@ import           RadioFX.Render
 import           RadioFX.Items
 
 bot :: BotApp Model Action
-bot = BotApp { botInitialModel = NoMode
-             , botAction       = flip handleUpdate
-             , botHandler      = handleAction
-             , botJobs         = []
-             }
+bot = BotApp
+  { botInitialModel = Model { jwt = Nothing, root = Nothing, items = [] }
+  , botAction       = flip handleUpdate
+  , botHandler      = handleAction
+  , botJobs         = []
+  }
 
 orCommand :: Text -> UpdateParser Text
 orCommand cmd = command cmd <|> command (cmd <> "@RadioFXServiceBot")
@@ -47,6 +48,8 @@ handleUpdate _model =
     <$> orCommand "station"
     <|> singleArg AddItem
     <$> orCommand "add"
+    <|> twoArgs Auth
+    <$> orCommand "auth"
     <|> callbackQueryDataRead
     <|> pure WrongCommand
  where
@@ -54,6 +57,10 @@ handleUpdate _model =
   singleArg action t = case Text.words t of
     [arg] -> action arg
     _     -> ArgumentExpected
+  twoArgs :: (Text -> Text -> Action) -> Text -> Action
+  twoArgs action t = case Text.words t of
+    [arg1, arg2] -> action arg1 arg2
+    _            -> TwoArgumentsExpected
 
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
@@ -80,14 +87,20 @@ handleAction action model = case action of
   ArgumentExpected -> model <# do
     replyText "ERR: Command expects exactly one argument"
     pure DoNothing
+  TwoArgumentsExpected -> model <# do
+    replyText "Err: Command expects two arguments"
+    pure DoNothing
+
+  -- Authorization
+  Auth _ _             -> pure model
 
   -- UserMode
   StartUserMode owner' -> model <# do
     mStations <- liftIO $ getUserStations owner'
     case mStations of
-      Just ss -> pure . InitUserMode $ ItemMode { root  = User owner'
-                                                , items = StItem Initial <$> ss
-                                                }
+      Just ss -> pure . InitUserMode $ model { root  = Just (User owner')
+                                             , items = StItem Initial <$> ss
+                                             }
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
         pure DoNothing
@@ -96,9 +109,9 @@ handleAction action model = case action of
   -- StationMode
   StartStationMode station' -> model <# do
     members <- liftIO $ getStationMembers station'
-    pure . InitStationMode $ ItemMode { root  = Station station'
-                                      , items = StItem Initial <$> members
-                                      }
+    pure . InitStationMode $ model { root  = Just (Station station')
+                                   , items = StItem Initial <$> members
+                                   }
 
   InitStationMode model' -> model' <# pure RenderModel
 

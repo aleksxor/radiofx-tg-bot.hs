@@ -47,7 +47,7 @@ confirmActions model = (toEditMessage "Apply") { editMessageReplyMarkup = markup
 
 
 itemsAsInlineKeyboard :: Model -> EditMessage
-itemsAsInlineKeyboard ItemMode { root = o, items = ss } = case ss of
+itemsAsInlineKeyboard Model { root = o, items = ss } = case ss of
   []     -> "Has no members"
   items' -> (toEditMessage msg)
     { editMessageReplyMarkup = Just
@@ -55,8 +55,9 @@ itemsAsInlineKeyboard ItemMode { root = o, items = ss } = case ss of
     }
    where
     msg = case o of
-      User    name -> "User: '" <> name <> "' is a member of these stations:"
-      Station name -> "Station: '" <> name <> "' has these members:"
+      Just (User name) ->
+        "User: '" <> name <> "' is a member of these stations:"
+      Just (Station name) -> "Station: '" <> name <> "' has these members:"
 itemsAsInlineKeyboard _ = toEditMessage "ERR: Wrong mode"
 
 

@@ -61,8 +61,8 @@ collectItemNames = Text.intercalate "," . collect
   woRemoved = (/= Removed) . getStatus
 
 setUserStations :: MonadThrow m => Model -> m ()
-setUserStations ItemMode { root = owner, items = stations } = case owner of
-  User name -> do
+setUserStations Model { root = owner, items = stations } = case owner of
+  Just (User name) -> do
     let stationGroup = collectItemNames stations
 
     pure ()
