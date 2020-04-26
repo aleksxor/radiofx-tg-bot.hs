@@ -1,6 +1,7 @@
 module RadioFX.Types where
 
 import           Data.Text                      ( Text )
+import           Control.Exception.Base         ( Exception(..) )
 
 data Status
   = Initial
@@ -23,6 +24,12 @@ data Model
   = NoMode
   | ItemMode { root :: Item, items :: [StItem] }
   deriving (Show, Read)
+
+data ModeException
+  = ModeException
+  deriving (Show)
+
+instance Exception ModeException
 
 data Action
   = DoNothing

@@ -12,6 +12,9 @@ import           Data.Aeson.Lens                ( key
                                                 , values
                                                 , _String
                                                 )
+import           Control.Monad.Trans.Resource   ( MonadThrow
+                                                , throwM
+                                                )
 import qualified Data.ByteString.Char8         as BS
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
@@ -51,14 +54,20 @@ getStationMembers station = do
   allStations =
     key "data" . values . key "attributes" . key "stationEmail" . _String
 
-collectStations :: [StItem] -> Text
-collectStations = Text.intercalate "," . collect
+collectItemNames :: [StItem] -> Text
+collectItemNames = Text.intercalate "," . collect
  where
   collect   = fmap (getItemName . getStItem) . filter woRemoved
   woRemoved = (/= Removed) . getStatus
 
-setUserStations :: Model -> IO ()
-setUserStations = undefined
+setUserStations :: MonadThrow m => Model -> m ()
+setUserStations ItemMode { root = owner, items = stations } = case owner of
+  User name -> do
+    let stationGroup = collectItemNames stations
+
+    pure ()
+  _ -> throwM ModeException
+
 
 setStationMembers :: Model -> IO ()
 setStationMembers = undefined

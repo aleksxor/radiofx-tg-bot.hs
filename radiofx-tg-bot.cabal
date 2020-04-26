@@ -30,15 +30,17 @@ library
   other-modules:     Paths_radiofx_tg_bot
   hs-source-dirs:    src
   build-depends:     base >= 4.7 && < 5
-                   , telegram-bot-simple
+                   , resourcet >= 1.2 && < 1.3
+                   , transformers >= 0.4
+                   , mtl
                    , text
+                   , bytestring
+                   , split
                    , http-client
                    , http-conduit
-                   , bytestring
                    , lens
                    , lens-aeson
-                   , mtl
-                   , split
+                   , telegram-bot-simple
   ghc-options:       -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   default-language:  Haskell2010
                      
@@ -47,9 +49,9 @@ executable radiofx-tg-bot
   other-modules:     Paths_radiofx_tg_bot
   -- other-extensions:
   build-depends:     base
-                   , radiofx-tg-bot
-                   , telegram-bot-simple
                    , text
+                   , telegram-bot-simple
+                   , radiofx-tg-bot
   hs-source-dirs:    .
   ghc-options:       -Wall -threaded -rtsopts -with-rtsopts=-N
   default-language:  Haskell2010
