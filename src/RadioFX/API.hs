@@ -4,7 +4,12 @@ module RadioFX.API where
 import           Network.HTTP.Simple            ( httpBS
                                                 , getResponseBody
                                                 )
-import           Network.HTTP.Client            ( parseRequest )
+import           Network.HTTP.Client            ( parseRequest
+                                                , method
+                                                , requestBody
+                                                , requestHeaders
+                                                )
+import           Network.HTTP.Types             ( hAuthorization )
 import           Control.Lens                   ( preview
                                                 , (^..)
                                                 )
@@ -18,6 +23,7 @@ import           Control.Monad.Trans.Resource   ( MonadThrow
 import qualified Data.ByteString.Char8         as BS
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
+import           Data.Text.Encoding             ( encodeUtf8 )
 
 import           RadioFX.Types
 import           RadioFX.Items
@@ -61,12 +67,18 @@ collectItemNames = Text.intercalate "," . collect
   woRemoved = (/= Removed) . getStatus
 
 setUserStations :: MonadThrow m => Model -> m ()
-setUserStations Model { root = owner, items = stations } = case owner of
-  Just (User name) -> do
-    let stationGroup = collectItemNames stations
-
-    pure ()
-  _ -> throwM ModeException
+setUserStations Model { jwt = jwt, root = owner, items = stations } =
+  case (jwt, owner) of
+    (Just (Jwt jwt'), Just (User name)) -> do
+      initReq <- parseRequest . Text.unpack $ baseURL <> "/metadata"
+      let req = initReq { method         = "POST"
+                        , requestHeaders = [(hAuthorization, encodeUtf8 jwt')]
+                        , requestBody    = body
+                        }
+          stationGroup = collectItemNames stations
+          body         = undefined
+      pure ()
+    _ -> throwM ModeException
 
 
 setStationMembers :: Model -> IO ()

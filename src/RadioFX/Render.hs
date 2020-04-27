@@ -25,6 +25,7 @@ startMessage = Text.unlines
   , ""
   , "Supported commands are:"
   , "/start - show this help"
+  , "/auth <login> <password> - authenticate as a user"
   , "/user <owner@email.com> - show owner's station group(s)"
   , "/station <stationGroup> - show stationGroup members"
   , "/add <station|user> - add a station or a user depending on the mode"
@@ -47,19 +48,20 @@ confirmActions model = (toEditMessage "Apply") { editMessageReplyMarkup = markup
 
 
 itemsAsInlineKeyboard :: Model -> EditMessage
-itemsAsInlineKeyboard Model { root = o, items = ss } = case ss of
-  []     -> "Has no members"
-  items' -> (toEditMessage msg)
-    { editMessageReplyMarkup = Just
-      $ SomeInlineKeyboardMarkup (itemsInlineKeyboard items')
-    }
-   where
-    msg = case o of
-      Just (User name) ->
-        "User: '" <> name <> "' is a member of these stations:"
-      Just (Station name) -> "Station: '" <> name <> "' has these members:"
-itemsAsInlineKeyboard _ = toEditMessage "ERR: Wrong mode"
-
+itemsAsInlineKeyboard Model { root = o, items = ss } = case o of
+  Nothing ->
+    "ERR: Undecidable mode. Please start with /user or /station command."
+  Just (User name) ->
+    itemKeyboard $ "User: '" <> name <> "' is a member of these stations:"
+  Just (Station name) ->
+    itemKeyboard $ "Station: '" <> name <> "' has these members:"
+ where
+  itemKeyboard msg = case ss of
+    []     -> "Has no members"
+    items' -> (toEditMessage msg)
+      { editMessageReplyMarkup = Just
+        $ SomeInlineKeyboardMarkup (itemsInlineKeyboard items')
+      }
 
 itemsInlineKeyboard :: [StItem] -> InlineKeyboardMarkup
 itemsInlineKeyboard items' =

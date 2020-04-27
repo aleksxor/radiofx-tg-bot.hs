@@ -37,6 +37,7 @@ library
                    , bytestring
                    , split
                    , http-client
+                   , http-types
                    , http-conduit
                    , lens
                    , lens-aeson

@@ -13,30 +13,27 @@ getItemName (User    name) = name
 getItemName (Station name) = name
 
 removeItem :: Item -> Model -> Model
-removeItem s Model { items = ss } = Model { items = foldr remove [] ss }
+removeItem s m@Model { items = ss } = m { items = foldr remove [] ss }
  where
   remove st@(StItem status s') ss'
     | status == Added && s == s'   = ss'
     | status == Initial && s == s' = StItem Removed s' : ss'
     | otherwise                    = st : ss'
-removeItem _ model = model
 
 addItem :: Item -> Model -> Model
-addItem s Model { root = o, items = ss } =
-  Model { items = ss <> [StItem Added s], root = o }
-addItem _ model = model
+addItem s m@Model { root = o, items = ss } =
+  m { items = ss <> [StItem Added s], root = o }
 
 restoreItem :: Item -> Model -> Model
-restoreItem s Model { items = ss } = Model { items = foldr restore [] ss }
+restoreItem s m@Model { items = ss } = m { items = foldr restore [] ss }
  where
   restore st@(StItem status s') ss'
     | s == s' && status == Removed = StItem Initial s : ss'
     | otherwise                    = st : ss'
-restoreItem _ model = model
 
 manipulateItems :: Model -> (Item -> Model -> Model) -> Text -> Eff Action Model
-manipulateItems model@Model { root = root' } action text = case root' of
-  Just (User    _) -> action (Station text) model <# pure RenderModel
-  Just (Station _) -> action (User text) model <# pure RenderModel
-manipulateItems model _ _ = model <# pure WrongCommand
+manipulateItems m@Model { root = root' } action text = case root' of
+  Just (User    _) -> action (Station text) m <# pure RenderModel
+  Just (Station _) -> action (User text) m <# pure RenderModel
+  Nothing          -> m <# pure WrongCommand
 
