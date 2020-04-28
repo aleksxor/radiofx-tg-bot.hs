@@ -40,6 +40,7 @@ library
                    , http-types
                    , http-conduit
                    , lens
+                   , aeson
                    , lens-aeson
                    , telegram-bot-simple
   ghc-options:       -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints

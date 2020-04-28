@@ -46,6 +46,7 @@ data Action
   | RestoreItem Text
   | RenderModel
   | ConfirmApply
+  | ApplyChanges
   -- Errors
   | ArgumentExpected
   | TwoArgumentsExpected

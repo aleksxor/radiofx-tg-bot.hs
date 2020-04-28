@@ -40,16 +40,11 @@ orCommand cmd = command cmd <|> command (cmd <> "@RadioFXServiceBot")
 handleUpdate :: Model -> Update -> Maybe Action
 handleUpdate _model =
   parseUpdate
-    $   WelcomeMessage
-    <$  orCommand "start"
-    <|> singleArg StartUserMode
-    <$> orCommand "user"
-    <|> singleArg StartStationMode
-    <$> orCommand "station"
-    <|> singleArg AddItem
-    <$> orCommand "add"
-    <|> twoArgs Auth
-    <$> orCommand "auth"
+    $   WelcomeMessage <$  orCommand "start"
+    <|> singleArg StartUserMode    <$> orCommand "user"
+    <|> singleArg StartStationMode <$> orCommand "station"
+    <|> singleArg AddItem          <$> orCommand "add"
+    <|> twoArgs Auth               <$> orCommand "auth"
     <|> callbackQueryDataRead
     <|> pure WrongCommand
  where

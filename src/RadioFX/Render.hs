@@ -38,13 +38,15 @@ startMessage = Text.unlines
   ]
 
 confirmActions :: Model -> EditMessage
-confirmActions model = (toEditMessage "Apply") { editMessageReplyMarkup = markup
-                                               }
+confirmActions _ = (toEditMessage "Apply")
+  { editMessageReplyMarkup = Just
+                             . SomeInlineKeyboardMarkup
+                             . InlineKeyboardMarkup
+                             $ [[btnYes, btnNo]]
+  }
  where
-  editMsg = itemsAsInlineKeyboard model
-  markup  = editMessageReplyMarkup editMsg
-  btnYes  = actionButton "Yes" DoNothing
-  btnNo   = actionButton "No" RenderModel
+  btnYes = actionButton "Yes" ApplyChanges
+  btnNo  = actionButton "No" RenderModel
 
 
 itemsAsInlineKeyboard :: Model -> EditMessage

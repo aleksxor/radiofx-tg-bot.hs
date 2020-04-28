@@ -2,9 +2,11 @@
 module RadioFX.API where
 
 import           Network.HTTP.Simple            ( httpBS
+                                                , httpNoBody
                                                 , getResponseBody
                                                 )
-import           Network.HTTP.Client            ( parseRequest
+import           Network.HTTP.Client            ( RequestBody(..)
+                                                , parseRequest
                                                 , method
                                                 , requestBody
                                                 , requestHeaders
@@ -20,10 +22,15 @@ import           Data.Aeson.Lens                ( key
 import           Control.Monad.Trans.Resource   ( MonadThrow
                                                 , throwM
                                                 )
+import           Control.Monad.Trans            ( MonadIO )
 import qualified Data.ByteString.Char8         as BS
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 import           Data.Text.Encoding             ( encodeUtf8 )
+import           Data.Aeson                     ( object
+                                                , (.=)
+                                                , encode
+                                                )
 
 import           RadioFX.Types
 import           RadioFX.Items
@@ -66,17 +73,23 @@ collectItemNames = Text.intercalate "," . collect
   collect   = fmap (getItemName . getStItem) . filter woRemoved
   woRemoved = (/= Removed) . getStatus
 
-setUserStations :: MonadThrow m => Model -> m ()
-setUserStations Model { jwt = jwt, root = owner, items = stations } =
-  case (jwt, owner) of
-    (Just (Jwt jwt'), Just (User name)) -> do
+setUserStations :: (MonadThrow m, MonadIO m) => Model -> m ()
+setUserStations Model { jwt = jwt', root = owner, items = stations } =
+  case (jwt', owner) of
+    (Just (Jwt jwt''), Just (User name)) -> do
       initReq <- parseRequest . Text.unpack $ baseURL <> "/metadata"
-      let req = initReq { method         = "POST"
-                        , requestHeaders = [(hAuthorization, encodeUtf8 jwt')]
-                        , requestBody    = body
-                        }
+      let req = initReq
+            { method         = "POST"
+            , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt'')]
+            , requestBody    = RequestBodyLBS $ encode reqObject
+            }
           stationGroup = collectItemNames stations
-          body         = undefined
+          reqObject    = object
+            [ "id" .= name
+            , "type" .= ("user" :: Text)
+            , "attributes" .= object ["stationGroup" .= stationGroup]
+            ]
+      _ <- httpNoBody req
       pure ()
     _ -> throwM ModeException
 
