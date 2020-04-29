@@ -2,7 +2,6 @@
 module RadioFX.API where
 
 import           Network.HTTP.Simple            ( httpBS
-                                                , httpNoBody
                                                 , getResponseBody
                                                 )
 import           Network.HTTP.Client            ( RequestBody(..)
@@ -89,7 +88,7 @@ setUserStations Model { jwt = jwt', root = owner, items = stations } =
             , "type" .= ("user" :: Text)
             , "attributes" .= object ["stationGroup" .= stationGroup]
             ]
-      _ <- httpNoBody req
+      _ <- httpBS req
       pure ()
     _ -> throwM ModeException
 

@@ -45,6 +45,7 @@ data Action
   | RemoveItem Text
   | RestoreItem Text
   | RenderModel
+  | ReplyErr Text
   | ConfirmApply
   | ApplyChanges
   -- Errors
