@@ -10,6 +10,7 @@ import           Network.HTTP.Client            ( RequestBody(..)
                                                 , requestBody
                                                 , requestHeaders
                                                 )
+import           Debug.Trace                    ( traceM )
 import           Network.HTTP.Types             ( hAuthorization )
 import           Control.Lens                   ( preview
                                                 , (^..)
@@ -72,26 +73,43 @@ collectItemNames = Text.intercalate "," . collect
   collect   = fmap (getItemName . getStItem) . filter woRemoved
   woRemoved = (/= Removed) . getStatus
 
-setUserStations :: (MonadThrow m, MonadIO m) => Model -> m ()
-setUserStations Model { jwt = jwt', root = owner, items = stations } =
-  case (jwt', owner) of
-    (Just (Jwt jwt''), Just (User name)) -> do
-      initReq <- parseRequest . Text.unpack $ baseURL <> "/metadata"
-      let req = initReq
-            { method         = "POST"
-            , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt'')]
-            , requestBody    = RequestBodyLBS $ encode reqObject
-            }
-          stationGroup = collectItemNames stations
-          reqObject    = object
+setUserStations
+  :: (MonadThrow m, MonadIO m) => Jwt -> Maybe Item -> [StItem] -> m ()
+setUserStations (Jwt jwt') (Just (User name)) stations = do
+  initReq <- parseRequest . Text.unpack $ baseURL <> "/metadata"
+  let req = initReq
+        { method         = "PUT"
+        , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt')]
+        , requestBody    = RequestBodyLBS $ encode reqObject
+        }
+      stationGroup = collectItemNames stations
+      reqObject    = object
+        [ "data" .= object
             [ "id" .= name
             , "type" .= ("user" :: Text)
             , "attributes" .= object ["stationGroup" .= stationGroup]
             ]
-      _ <- httpBS req
-      pure ()
-    _ -> throwM ModeException
-
+        ]
+  _ <- httpBS req
+  pure ()
+setUserStations _ _ _ = throwM ModeException
 
 setStationMembers :: Model -> IO ()
 setStationMembers = undefined
+
+authorize :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
+authorize login password = do
+  initReq <- parseRequest . Text.unpack $ baseURL <> "/login"
+  let req = initReq { method      = "POST"
+                    , requestBody = RequestBodyLBS $ encode reqObject
+                    }
+      reqObject = object
+        [ "data" .= object
+            [ "id" .= login
+            , "type" .= ("user" :: Text)
+            , "attributes" .= object ["password" .= password]
+            ]
+        ]
+  res <- httpBS req
+  traceM $ BS.unpack $ getResponseBody res
+  pure ()

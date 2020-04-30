@@ -82,8 +82,8 @@ handleAction action model = case action of
       replyOrEdit
         $ toEditMessage "Authorize with /auth command to commit changes"
       pure DoNothing
-    Just _ -> do
-      liftIO $ setUserStations model `catch` handle
+    Just jwt' -> do
+      liftIO $ setUserStations jwt' (root model) (items model) `catch` handle
       pure DoNothing
    where
     handle :: ModeException -> IO ()
@@ -105,7 +105,9 @@ handleAction action model = case action of
     pure $ ReplyErr "Command expects two arguments"
 
   -- Authorization
-  Auth _ _             -> pure $ model { jwt = Just $ Jwt "jwt" }
+  Auth login password -> model <# do
+    liftIO $ authorize login password
+    pure DoNothing
 
   -- UserMode
   StartUserMode owner' -> model <# do
