@@ -97,7 +97,7 @@ setUserStations _ _ _ = throwM ModeException
 setStationMembers :: Model -> IO ()
 setStationMembers = undefined
 
-authorize :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
+authorize :: (MonadThrow m, MonadIO m) => Text -> Text -> m (Maybe Text)
 authorize login password = do
   initReq <- parseRequest . Text.unpack $ baseURL <> "/login"
   let req = initReq { method      = "POST"
@@ -111,8 +111,4 @@ authorize login password = do
             ]
         ]
   res <- httpBS req
-  case preview (key "meta" . key "jwt" . _String) $ getResponseBody res of
-    Just jwt -> do
-
-      pure ()
-    Nothing -> throwM AuthException
+  pure $ preview (key "meta" . key "jwt" . _String) $ getResponseBody res
