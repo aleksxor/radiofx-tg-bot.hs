@@ -30,11 +30,12 @@ data Model
   , items :: [StItem]
   } deriving (Show, Read)
 
-data ModeException
+data ApiException
   = ModeException
+  | AuthException
   deriving (Show)
 
-instance Exception ModeException
+instance Exception ApiException
 
 data Action
   = DoNothing

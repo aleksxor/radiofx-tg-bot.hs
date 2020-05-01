@@ -86,7 +86,7 @@ handleAction action model = case action of
       liftIO $ setUserStations jwt' (root model) (items model) `catch` handle
       pure DoNothing
    where
-    handle :: ModeException -> IO ()
+    handle :: ApiException -> IO ()
     handle = undefined
 
   AddItem     item -> manipulateItems model addItem item

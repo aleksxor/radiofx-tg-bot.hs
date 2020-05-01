@@ -10,7 +10,7 @@ import           Network.HTTP.Client            ( RequestBody(..)
                                                 , requestBody
                                                 , requestHeaders
                                                 )
-import           Debug.Trace                    ( traceM )
+-- import           Debug.Trace                    ( traceM )
 import           Network.HTTP.Types             ( hAuthorization )
 import           Control.Lens                   ( preview
                                                 , (^..)
@@ -111,5 +111,8 @@ authorize login password = do
             ]
         ]
   res <- httpBS req
-  traceM $ BS.unpack $ getResponseBody res
-  pure ()
+  case preview (key "meta" . key "jwt" . _String) $ getResponseBody res of
+    Just jwt -> do
+
+      pure ()
+    Nothing -> throwM AuthException
