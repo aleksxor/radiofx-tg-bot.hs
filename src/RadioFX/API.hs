@@ -6,6 +6,7 @@ import           Network.HTTP.Simple            ( httpBS
                                                 )
 import           Network.HTTP.Client            ( RequestBody(..)
                                                 , parseRequest
+                                                , parseUrlThrow
                                                 , method
                                                 , requestBody
                                                 , requestHeaders
@@ -76,7 +77,7 @@ collectItemNames = Text.intercalate "," . collect
 setUserStations
   :: (MonadThrow m, MonadIO m) => Jwt -> Maybe Item -> [StItem] -> m ()
 setUserStations (Jwt jwt') (Just (User name)) stations = do
-  initReq <- parseRequest . Text.unpack $ baseURL <> "/metadata"
+  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
   let req = initReq
         { method         = "PUT"
         , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt')]
@@ -99,7 +100,7 @@ setStationMembers = undefined
 
 authorize :: (MonadThrow m, MonadIO m) => Text -> Text -> m (Maybe Text)
 authorize login password = do
-  initReq <- parseRequest . Text.unpack $ baseURL <> "/login"
+  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/login"
   let req = initReq { method      = "POST"
                     , requestBody = RequestBodyLBS $ encode reqObject
                     }

@@ -6,8 +6,12 @@ import           Control.Monad.Trans            ( liftIO )
 import           Control.Exception              ( catch )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
+import           Control.Monad.Trans            ( MonadIO
+                                                , lift
+                                                )
 
 import           Telegram.Bot.Simple            ( BotApp(..)
+                                                , BotM(..)
                                                 , Eff(..)
                                                 , (<#)
                                                 , replyText
@@ -83,15 +87,14 @@ handleAction action model = case action of
         $ toEditMessage "Authorize with /auth command to commit changes"
       pure DoNothing
     Just jwt' -> do
-      liftIO $ setUserStations jwt' (root model) (items model) `catch` handle
-      pure DoNothing
-   where
-    handle :: ApiException -> IO ()
-    handle = undefined
+      jwt <- liftIO $ setUserStations jwt' (root model) (items model)
+      case jwt of
+        _ -> pure DoNothing
 
-  AddItem     item -> manipulateItems model addItem item
-  RemoveItem  item -> manipulateItems model removeItem item
-  RestoreItem item -> manipulateItems model restoreItem item
+
+  AddItem     item -> manipulateItems (addItem model) item
+  RemoveItem  item -> manipulateItems (removeItem model) item
+  RestoreItem item -> manipulateItems (restoreItem model) item
 
   -- Errors
   WrongCommand     -> model <# do
@@ -135,3 +138,7 @@ handleAction action model = case action of
     replyOrEdit $ itemsAsInlineKeyboard model
     pure DoNothing
 
+
+checkRoot :: Model -> Eff Model (Maybe Action)
+checkRoot m = case roow m of
+  Just _ -> 
