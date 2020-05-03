@@ -45,8 +45,8 @@ data Action
   | AddItem Text
   | RemoveItem Text
   | RestoreItem Text
-  | RenderModel
-  | ReplyErr Text
+  | RenderModel Model
+  | ReplyError Text
   | ConfirmApply
   | ApplyChanges
   -- Errors
@@ -56,9 +56,7 @@ data Action
   | WrongModeAction Action
   -- User Mode
   | StartUserMode Text
-  | InitUserMode Model
   -- Station Mode
   | StartStationMode Text
-  | InitStationMode Model
   deriving (Show, Read)
 

@@ -27,7 +27,7 @@ restoreItem m@Model { items = ss } s = m { items = foldr restore [] ss }
     | s == s' && status == Removed = StItem Initial s : ss'
     | otherwise                    = st : ss'
 
-manipulateItems :: Item -> (Item -> Model) -> Text -> Model
-manipulateItems root' action text = case root' of
-  User    _ -> action (Station text)
-  Station _ -> action (User text)
+mkModelItem :: Item -> Text -> Item
+mkModelItem root' text = case root' of
+  User    _ -> Station text
+  Station _ -> User text

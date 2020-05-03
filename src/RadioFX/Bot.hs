@@ -71,8 +71,8 @@ handleUpdate _model =
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
   -- Common Actions
-  DoNothing    -> pure model
-  ReplyErr err -> model <# do
+  DoNothing      -> pure model
+  ReplyError err -> model <# do
     replyText $ "ERR: " <> err
     pure DoNothing
   WelcomeMessage -> model <# do
@@ -91,21 +91,23 @@ handleAction action model = case action of
       case jwt of
         _ -> pure DoNothing
 
-
-  AddItem     item -> manipulateItems (addItem model) item
-  RemoveItem  item -> manipulateItems (removeItem model) item
-  RestoreItem item -> manipulateItems (restoreItem model) item
+  AddItem item ->
+    whenRoot . RenderModel . addItem model . mkModelItem (root model) $ item
+  RemoveItem item ->
+    whenRoot . RenderModel . removeItem model . mkModelItem (root model) $ item
+  RestoreItem item ->
+    whenRoot . RenderModel . restoreItem model . mkModelItem (root model) $ item
 
   -- Errors
-  WrongCommand     -> model <# do
-    pure $ ReplyErr "Unsupported command"
+  WrongCommand -> model <# do
+    pure $ ReplyError "Unsupported command"
   WrongModeAction action' -> model <# do
     replyText $ "Invalid command for current mode: " <> Text.pack (show action')
     pure DoNothing
   ArgumentExpected -> model <# do
-    pure $ ReplyErr "Command expects exactly one argument"
+    pure $ ReplyError "Command expects exactly one argument"
   TwoArgumentsExpected -> model <# do
-    pure $ ReplyErr "Command expects two arguments"
+    pure $ ReplyError "Command expects two arguments"
 
   -- Authorization
   Auth login password -> model <# do
@@ -116,29 +118,27 @@ handleAction action model = case action of
   StartUserMode owner' -> model <# do
     mStations <- liftIO $ getUserStations owner'
     case mStations of
-      Just ss -> pure . InitUserMode $ model { root  = Just (User owner')
-                                             , items = StItem Initial <$> ss
-                                             }
+      Just ss -> pure . RenderModel $ model { root  = Just (User owner')
+                                            , items = StItem Initial <$> ss
+                                            }
       Nothing -> do
         replyText $ "Could not fetch stations for: " <> owner'
         pure DoNothing
-  InitUserMode     model'   -> model' <# pure RenderModel
 
   -- StationMode
   StartStationMode station' -> model <# do
     members <- liftIO $ getStationMembers station'
-    pure . InitStationMode $ model { root  = Just (Station station')
-                                   , items = StItem Initial <$> members
-                                   }
-
-  InitStationMode model' -> model' <# pure RenderModel
+    pure . RenderModel $ model { root  = Just (Station station')
+                               , items = StItem Initial <$> members
+                               }
 
   -- Render
-  RenderModel            -> model <# do
-    replyOrEdit $ itemsAsInlineKeyboard model
+  RenderModel model' -> model' <# do
+    replyOrEdit $ itemsAsInlineKeyboard model'
     pure DoNothing
 
 
-checkRoot :: Model -> Eff Model (Maybe Action)
-checkRoot m = case roow m of
-  Just _ -> 
+whenRoot :: Model -> Action -> Action
+whenRoot m@Model { root = root' } a = case root' of
+  Just _  -> a
+  Nothing -> ReplyError "Wrong command for current mode"
