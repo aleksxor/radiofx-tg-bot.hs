@@ -19,6 +19,10 @@ data Item
   | Station Text
   deriving (Show, Read, Eq)
 
+newtype Root
+  = Root Item
+  deriving (Show, Read)
+
 newtype Jwt
   = Jwt Text
   deriving (Show, Read)
@@ -26,7 +30,7 @@ newtype Jwt
 data Model
   = Model
   { jwt :: Maybe Jwt
-  , root :: Maybe Item
+  , root :: Maybe Root
   , items :: [StItem]
   } deriving (Show, Read)
 

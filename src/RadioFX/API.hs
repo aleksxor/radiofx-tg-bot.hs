@@ -75,8 +75,8 @@ collectItemNames = Text.intercalate "," . collect
   woRemoved = (/= Removed) . getStatus
 
 setUserStations
-  :: (MonadThrow m, MonadIO m) => Jwt -> Maybe Item -> [StItem] -> m ()
-setUserStations (Jwt jwt') (Just (User name)) stations = do
+  :: (MonadThrow m, MonadIO m) => Jwt -> Maybe Root -> [StItem] -> m ()
+setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
   initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
   let req = initReq
         { method         = "PUT"

@@ -49,14 +49,11 @@ confirmActions m = (toEditMessage "Apply")
   btnNo  = actionButton "No" (RenderModel m)
 
 
-itemsAsInlineKeyboard :: Model -> EditMessage
-itemsAsInlineKeyboard Model { root = o, items = ss } = case o of
-  Nothing ->
-    "ERR: Undecidable mode. Please start with /user or /station command."
-  Just (User name) ->
+itemsAsInlineKeyboard :: [StItem] -> Root -> EditMessage
+itemsAsInlineKeyboard ss (Root r) = case r of
+  User name ->
     itemKeyboard $ "User: '" <> name <> "' is a member of these stations:"
-  Just (Station name) ->
-    itemKeyboard $ "Station: '" <> name <> "' has these members:"
+  Station name -> itemKeyboard $ "Station: '" <> name <> "' has these members:"
  where
   itemKeyboard msg = case ss of
     []     -> "Has no members"

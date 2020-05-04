@@ -8,26 +8,25 @@ getItemName :: Item -> Text
 getItemName (User    name) = name
 getItemName (Station name) = name
 
-removeItem :: Model -> Item -> Model
-removeItem m@Model { items = ss } s = m { items = foldr remove [] ss }
+removeItem :: [StItem] -> Item -> [StItem]
+removeItem ss s = foldr remove [] ss
  where
   remove st@(StItem status s') ss'
     | status == Added && s == s'   = ss'
     | status == Initial && s == s' = StItem Removed s' : ss'
     | otherwise                    = st : ss'
 
-addItem :: Model -> Item -> Model
-addItem m@Model { root = o, items = ss } s =
-  m { items = ss <> [StItem Added s], root = o }
+addItem :: [StItem] -> Item -> [StItem]
+addItem ss s = ss <> [StItem Added s]
 
-restoreItem :: Model -> Item -> Model
-restoreItem m@Model { items = ss } s = m { items = foldr restore [] ss }
+restoreItem :: [StItem] -> Item -> [StItem]
+restoreItem ss s = foldr restore [] ss
  where
   restore st@(StItem status s') ss'
     | s == s' && status == Removed = StItem Initial s : ss'
     | otherwise                    = st : ss'
 
-mkModelItem :: Item -> Text -> Item
-mkModelItem root' text = case root' of
+mkModelItem :: Text -> Root -> Item
+mkModelItem text (Root root') = case root' of
   User    _ -> Station text
   Station _ -> User text

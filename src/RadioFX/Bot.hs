@@ -69,76 +69,88 @@ handleUpdate _model =
     _            -> TwoArgumentsExpected
 
 handleAction :: Action -> Model -> Eff Action Model
-handleAction action model = case action of
+handleAction action model@Model { jwt = jwt', root = root', items = items' } =
+  case action of
   -- Common Actions
-  DoNothing      -> pure model
-  ReplyError err -> model <# do
-    replyText $ "ERR: " <> err
-    pure DoNothing
-  WelcomeMessage -> model <# do
-    replyText startMessage
-    pure DoNothing
-  ConfirmApply -> model <# do
-    editUpdateMessage (confirmActions model)
-    pure DoNothing
-  ApplyChanges -> model <# case jwt model of
-    Nothing -> do
-      replyOrEdit
-        $ toEditMessage "Authorize with /auth command to commit changes"
+    DoNothing      -> pure model
+    ReplyError err -> model <# do
+      replyText $ "ERR: " <> err
       pure DoNothing
-    Just jwt' -> do
-      jwt <- liftIO $ setUserStations jwt' (root model) (items model)
-      case jwt of
-        _ -> pure DoNothing
-
-  AddItem item ->
-    whenRoot . RenderModel . addItem model . mkModelItem (root model) $ item
-  RemoveItem item ->
-    whenRoot . RenderModel . removeItem model . mkModelItem (root model) $ item
-  RestoreItem item ->
-    whenRoot . RenderModel . restoreItem model . mkModelItem (root model) $ item
-
-  -- Errors
-  WrongCommand -> model <# do
-    pure $ ReplyError "Unsupported command"
-  WrongModeAction action' -> model <# do
-    replyText $ "Invalid command for current mode: " <> Text.pack (show action')
-    pure DoNothing
-  ArgumentExpected -> model <# do
-    pure $ ReplyError "Command expects exactly one argument"
-  TwoArgumentsExpected -> model <# do
-    pure $ ReplyError "Command expects two arguments"
-
-  -- Authorization
-  Auth login password -> model <# do
-    liftIO $ authorize login password
-    pure DoNothing
-
-  -- UserMode
-  StartUserMode owner' -> model <# do
-    mStations <- liftIO $ getUserStations owner'
-    case mStations of
-      Just ss -> pure . RenderModel $ model { root  = Just (User owner')
-                                            , items = StItem Initial <$> ss
-                                            }
+    WelcomeMessage -> model <# do
+      replyText startMessage
+      pure DoNothing
+    ConfirmApply -> model <# do
+      editUpdateMessage (confirmActions model)
+      pure DoNothing
+    ApplyChanges -> model <# case jwt' of
       Nothing -> do
-        replyText $ "Could not fetch stations for: " <> owner'
+        replyOrEdit
+          $ toEditMessage "Authorize with /auth command to commit changes"
         pure DoNothing
+      Just token -> do
+        res <- liftIO $ setUserStations token root' items' `catch` handler
+        case res of
+          _ -> pure DoNothing
+     where
+      handler :: Exception e => e -> Either e Text
+      handler = undefined
 
-  -- StationMode
-  StartStationMode station' -> model <# do
-    members <- liftIO $ getStationMembers station'
-    pure . RenderModel $ model { root  = Just (Station station')
-                               , items = StItem Initial <$> members
-                               }
+    AddItem item -> model <# pure
+      (RenderModel model
+        { items = maybe items' (addItem items') (mkModelItem item <$> root')
+        }
+      )
+    RemoveItem item -> model <# pure
+      (RenderModel model
+        { items = maybe items' (removeItem items') (mkModelItem item <$> root')
+        }
+      )
+    RestoreItem item -> model <# pure
+      (RenderModel model
+        { items = maybe items' (restoreItem items') (mkModelItem item <$> root')
+        }
+      )
 
-  -- Render
-  RenderModel model' -> model' <# do
-    replyOrEdit $ itemsAsInlineKeyboard model'
-    pure DoNothing
+    -- Errors
+    WrongCommand -> model <# do
+      pure $ ReplyError "Unsupported command"
+    WrongModeAction action' -> model <# do
+      replyText $ "Invalid command for current mode: " <> Text.pack
+        (show action')
+      pure DoNothing
+    ArgumentExpected -> model <# do
+      pure $ ReplyError "Command expects exactly one argument"
+    TwoArgumentsExpected -> model <# do
+      pure $ ReplyError "Command expects two arguments"
 
+    -- Authorization
+    Auth login password -> model <# do
+      liftIO $ authorize login password
+      pure DoNothing
 
-whenRoot :: Model -> Action -> Action
-whenRoot m@Model { root = root' } a = case root' of
-  Just _  -> a
-  Nothing -> ReplyError "Wrong command for current mode"
+    -- UserMode
+    StartUserMode owner' -> model <# do
+      mStations <- liftIO $ getUserStations owner'
+      case mStations of
+        Just ss -> pure . RenderModel $ model
+          { root  = Just $ Root (User owner')
+          , items = StItem Initial <$> ss
+          }
+        Nothing -> do
+          replyText $ "Could not fetch stations for: " <> owner'
+          pure DoNothing
+
+    -- StationMode
+    StartStationMode station' -> model <# do
+      members <- liftIO $ getStationMembers station'
+      pure . RenderModel $ model { root  = Just $ Root (Station station')
+                                 , items = StItem Initial <$> members
+                                 }
+
+    -- Render
+    RenderModel model' -> model' <# do
+      replyOrEdit $ maybe (toEditMessage "Cannot render model without root")
+                          (itemsAsInlineKeyboard items')
+                          root'
+      pure DoNothing
+
