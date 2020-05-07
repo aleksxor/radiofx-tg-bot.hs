@@ -37,8 +37,18 @@ startMessage = Text.unlines
   , "    to add/remove members to the group"
   ]
 
+selectModeMessage :: Text
+selectModeMessage = Text.unlines
+  [ "Please initiate one of the modes:"
+  , ""
+  , "/user <owner@email.com> - initiates user mode to add"
+  , "  new station the selected user"
+  , "/station <stationGroup> - initiates station mode to"
+  , "  add new users to th selected station group"
+  ]
+
 confirmActions :: Model -> EditMessage
-confirmActions m = (toEditMessage "Apply")
+confirmActions _ = (toEditMessage "Apply")
   { editMessageReplyMarkup = Just
                              . SomeInlineKeyboardMarkup
                              . InlineKeyboardMarkup
@@ -46,8 +56,7 @@ confirmActions m = (toEditMessage "Apply")
   }
  where
   btnYes = actionButton "Yes" ApplyChanges
-  btnNo  = actionButton "No" (RenderModel m)
-
+  btnNo  = actionButton "No" DoNothing
 
 itemsAsInlineKeyboard :: [StItem] -> Root -> EditMessage
 itemsAsInlineKeyboard ss (Root r) = case r of

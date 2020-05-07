@@ -3,15 +3,13 @@ module RadioFX.Bot where
 
 import           Control.Applicative            ( (<|>) )
 import           Control.Monad.Trans            ( liftIO )
-import           Control.Exception              ( catch )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
-import           Control.Monad.Trans            ( MonadIO
-                                                , lift
+import           Control.Exception              ( catch
+                                                , SomeException
                                                 )
 
 import           Telegram.Bot.Simple            ( BotApp(..)
-                                                , BotM(..)
                                                 , Eff(..)
                                                 , (<#)
                                                 , replyText
@@ -73,9 +71,6 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
   case action of
   -- Common Actions
     DoNothing      -> pure model
-    ReplyError err -> model <# do
-      replyText $ "ERR: " <> err
-      pure DoNothing
     WelcomeMessage -> model <# do
       replyText startMessage
       pure DoNothing
@@ -88,12 +83,15 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
           $ toEditMessage "Authorize with /auth command to commit changes"
         pure DoNothing
       Just token -> do
-        res <- liftIO $ setUserStations token root' items' `catch` handler
+        res <- liftIO $ setUserStations token root' items'
         case res of
-          _ -> pure DoNothing
-     where
-      handler :: Exception e => e -> Either e Text
-      handler = undefined
+          Right () -> do
+            replyText "Changes succesfully applied"
+            pure $ maybe (ReplyError "Empty root field")
+                         (StartStationMode . getItemName . getRootItem)
+                         root'
+          Left ModeException -> pure $ ReplyError "Wrong command for this mode"
+          Left _             -> pure $ ReplyError "Could not apply changes"
 
     AddItem item -> model <# pure
       (RenderModel model
@@ -112,12 +110,11 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
       )
 
     -- Errors
+    ReplyError err -> model <# do
+      replyText $ "ERR: " <> err
+      pure DoNothing
     WrongCommand -> model <# do
       pure $ ReplyError "Unsupported command"
-    WrongModeAction action' -> model <# do
-      replyText $ "Invalid command for current mode: " <> Text.pack
-        (show action')
-      pure DoNothing
     ArgumentExpected -> model <# do
       pure $ ReplyError "Command expects exactly one argument"
     TwoArgumentsExpected -> model <# do
@@ -125,8 +122,15 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
 
     -- Authorization
     Auth login password -> model <# do
-      liftIO $ authorize login password
-      pure DoNothing
+      res <- liftIO $ authorize login password `catch` handler
+      case res of
+        Right (Just jwt'') -> do
+          replyText "Succesfully authorized"
+          pure $ RenderModel model { jwt = Just $ Jwt jwt'' }
+        _ -> pure $ ReplyError "Failed to authorize"
+     where
+      handler :: SomeException -> IO (Either () (Maybe Text))
+      handler _ = pure $ Left ()
 
     -- UserMode
     StartUserMode owner' -> model <# do
@@ -149,8 +153,8 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
 
     -- Render
     RenderModel model' -> model' <# do
-      replyOrEdit $ maybe (toEditMessage "Cannot render model without root")
-                          (itemsAsInlineKeyboard items')
-                          root'
+      replyOrEdit $ maybe (toEditMessage selectModeMessage)
+                          (itemsAsInlineKeyboard $ items model')
+                          (root model')
       pure DoNothing
 

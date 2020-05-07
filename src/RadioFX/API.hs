@@ -75,7 +75,11 @@ collectItemNames = Text.intercalate "," . collect
   woRemoved = (/= Removed) . getStatus
 
 setUserStations
-  :: (MonadThrow m, MonadIO m) => Jwt -> Maybe Root -> [StItem] -> m ()
+  :: (MonadThrow m, MonadIO m)
+  => Jwt
+  -> Maybe Root
+  -> [StItem]
+  -> m (Either e ())
 setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
   initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
   let req = initReq
@@ -92,13 +96,14 @@ setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
             ]
         ]
   _ <- httpBS req
-  pure ()
+  pure $ Right ()
 setUserStations _ _ _ = throwM ModeException
 
 setStationMembers :: Model -> IO ()
 setStationMembers = undefined
 
-authorize :: (MonadThrow m, MonadIO m) => Text -> Text -> m (Maybe Text)
+authorize
+  :: (MonadThrow m, MonadIO m) => Text -> Text -> m (Either e (Maybe Text))
 authorize login password = do
   initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/login"
   let req = initReq { method      = "POST"
@@ -112,4 +117,8 @@ authorize login password = do
             ]
         ]
   res <- httpBS req
-  pure $ preview (key "meta" . key "jwt" . _String) $ getResponseBody res
+  pure
+    . Right
+    . preview (key "meta" . key "jwt" . _String)
+    . getResponseBody
+    $ res

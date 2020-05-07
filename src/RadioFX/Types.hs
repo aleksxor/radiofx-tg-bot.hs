@@ -20,7 +20,7 @@ data Item
   deriving (Show, Read, Eq)
 
 newtype Root
-  = Root Item
+  = Root { getRootItem :: Item }
   deriving (Show, Read)
 
 newtype Jwt
@@ -57,7 +57,6 @@ data Action
   | ArgumentExpected
   | TwoArgumentsExpected
   | WrongCommand
-  | WrongModeAction Action
   -- User Mode
   | StartUserMode Text
   -- Station Mode
