@@ -85,11 +85,10 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
       Just token -> do
         res <- liftIO $ setUserStations token root' items'
         case res of
-          Right () -> do
-            replyText "Changes succesfully applied"
-            pure $ maybe (ReplyError "Empty root field")
-                         (StartStationMode . getItemName . getRootItem)
-                         root'
+          Right () -> pure $ maybe
+            (ReplyError "Empty root field")
+            (StartUserMode . getItemName . getRootItem)
+            root'
           Left ModeException -> pure $ ReplyError "Wrong command for this mode"
           Left _             -> pure $ ReplyError "Could not apply changes"
 
