@@ -2,12 +2,12 @@
 module RadioFX.Bot where
 
 import           Control.Applicative            ( (<|>) )
-import           Control.Monad.Trans            ( liftIO )
+import           Control.Monad.Trans            ( MonadIO
+                                                , liftIO
+                                                )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
-import           Control.Exception              ( catch
-                                                , SomeException
-                                                )
+import           Control.Exception              ( catch )
 
 import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , Eff(..)
@@ -83,7 +83,8 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
           $ toEditMessage "Authorize with /auth command to commit changes"
         pure DoNothing
       Just token -> do
-        res <- liftIO $ setUserStations token root' items'
+        res <-
+          liftIO $ setUserStations token root' items' `catch` genericHandler
         case res of
           Right () -> pure $ maybe
             (ReplyError "Empty root field")
@@ -121,27 +122,25 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
 
     -- Authorization
     Auth login password -> model <# do
-      res <- liftIO $ authorize login password `catch` handler
+      res <- liftIO $ authorize login password `catch` genericHandler
       case res of
         Right (Just jwt'') -> do
           replyText "Succesfully authorized"
           pure $ RenderModel model { jwt = Just $ Jwt jwt'' }
         _ -> pure $ ReplyError "Failed to authorize"
-     where
-      handler :: SomeException -> IO (Either () (Maybe Text))
-      handler _ = pure $ Left ()
 
     -- UserMode
     StartUserMode owner' -> model <# do
-      mStations <- liftIO $ getUserStations owner'
+      mStations <- liftIO $ getUserStations owner' `catch` genericHandler
       case mStations of
-        Just ss -> pure . RenderModel $ model
+        Right (Just ss) -> pure . RenderModel $ model
           { root  = Just $ Root (User owner')
           , items = StItem Initial <$> ss
           }
-        Nothing -> do
+        Right Nothing -> do
           replyText $ "Could not fetch stations for: " <> owner'
           pure DoNothing
+        _ -> pure . ReplyError $ "Failed to get stations for user: " <> owner'
 
     -- StationMode
     StartStationMode station' -> model <# do
@@ -157,3 +156,6 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
                           (root model')
       pure DoNothing
 
+
+genericHandler :: (MonadIO m) => e -> m (Either e a)
+genericHandler e = pure $ Left e

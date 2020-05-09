@@ -11,6 +11,7 @@ import           Network.HTTP.Client            ( RequestBody(..)
                                                 , requestBody
                                                 , requestHeaders
                                                 )
+import           Control.Exception              ( SomeException )
 -- import           Debug.Trace                    ( traceM )
 import           Network.HTTP.Types             ( hAuthorization )
 import           Control.Lens                   ( preview
@@ -23,7 +24,9 @@ import           Data.Aeson.Lens                ( key
 import           Control.Monad.Trans.Resource   ( MonadThrow
                                                 , throwM
                                                 )
-import           Control.Monad.Trans            ( MonadIO )
+import           Control.Monad.Trans            ( liftIO
+                                                , MonadIO
+                                                )
 import qualified Data.ByteString.Char8         as BS
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
@@ -48,10 +51,12 @@ fetchJSON uri = do
 splitGroups :: Text -> [Item]
 splitGroups = fmap Station . Text.splitOn ","
 
-getUserStations :: Text -> IO (Maybe [Item])
+getUserStations
+  :: (MonadIO m) => Text -> m (Either SomeException (Maybe [Item]))
 getUserStations owner' = do
-  json <- fetchJSON $ "/metadata?id=" <> owner'
-  return
+  json <- liftIO $ fetchJSON ("/metadata?id=" <> owner')
+  pure
+    .   Right
     $   splitGroups
     <$> preview (key "data" . key "attributes" . key "stationGroup" . _String)
                 json
@@ -103,7 +108,10 @@ setStationMembers :: Model -> IO ()
 setStationMembers = undefined
 
 authorize
-  :: (MonadThrow m, MonadIO m) => Text -> Text -> m (Either e (Maybe Text))
+  :: (MonadThrow m, MonadIO m)
+  => Text
+  -> Text
+  -> m (Either SomeException (Maybe Text))
 authorize login password = do
   initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/login"
   let req = initReq { method      = "POST"
