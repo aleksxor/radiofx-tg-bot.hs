@@ -1,6 +1,7 @@
 module RadioFX.Types where
 
 import           Data.Text                      ( Text )
+import qualified Data.Text                     as Text
 import           Control.Exception.Base         ( Exception(..) )
 
 data Status
@@ -36,8 +37,11 @@ data Model
 
 data ApiException
   = ModeException
-  | AuthException
-  deriving (Show)
+  | AuthException Text
+
+instance Show ApiException where
+  show ModeException        = "Wrong command for this mode"
+  show (AuthException user) = "Failed to authorize user" <> Text.unpack user
 
 instance Exception ApiException
 

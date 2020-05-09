@@ -7,7 +7,9 @@ import           Control.Monad.Trans            ( MonadIO
                                                 )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
-import           Control.Exception              ( catch )
+import           Control.Exception              ( catch
+                                                , displayException
+                                                )
 
 import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , Eff(..)
@@ -90,8 +92,7 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
             (ReplyError "Empty root field")
             (StartUserMode . getItemName . getRootItem)
             root'
-          Left ModeException -> pure $ ReplyError "Wrong command for this mode"
-          Left _             -> pure $ ReplyError "Could not apply changes"
+          Left e -> pure . ReplyError . Text.pack $ displayException e
 
     AddItem item -> model <# pure
       (RenderModel model
@@ -127,7 +128,8 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
         Right (Just jwt'') -> do
           replyText "Succesfully authorized"
           pure $ RenderModel model { jwt = Just $ Jwt jwt'' }
-        _ -> pure $ ReplyError "Failed to authorize"
+        Right Nothing -> pure $ ReplyError "Failed to parse response"
+        Left  e       -> pure . ReplyError . Text.pack $ displayException e
 
     -- UserMode
     StartUserMode owner' -> model <# do
@@ -140,14 +142,17 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
         Right Nothing -> do
           replyText $ "Could not fetch stations for: " <> owner'
           pure DoNothing
-        _ -> pure . ReplyError $ "Failed to get stations for user: " <> owner'
+        Left e -> pure . ReplyError . Text.pack $ displayException e
 
     -- StationMode
     StartStationMode station' -> model <# do
-      members <- liftIO $ getStationMembers station'
-      pure . RenderModel $ model { root  = Just $ Root (Station station')
-                                 , items = StItem Initial <$> members
-                                 }
+      eMembers <- liftIO $ getStationMembers station' `catch` genericHandler
+      case eMembers of
+        Right members -> pure . RenderModel $ model
+          { root  = Just $ Root (Station station')
+          , items = StItem Initial <$> members
+          }
+        Left e -> pure . ReplyError . Text.pack $ displayException e
 
     -- Render
     RenderModel model' -> model' <# do
@@ -158,4 +163,4 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
 
 
 genericHandler :: (MonadIO m) => e -> m (Either e a)
-genericHandler e = pure $ Left e
+genericHandler = pure . Left

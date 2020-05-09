@@ -61,14 +61,15 @@ getUserStations owner' = do
     <$> preview (key "data" . key "attributes" . key "stationGroup" . _String)
                 json
 
-getStationMembers :: Text -> IO [Item]
+getStationMembers :: (MonadIO m) => Text -> m (Either SomeException [Item])
 getStationMembers station = do
   json <-
-    fetchJSON
+    liftIO
+    .  fetchJSON
     $  "/list?limit=100&filter=%7B\"stationGroup\":\""
     <> station
     <> "\"%7D"
-  pure $ User <$> json ^.. allStations
+  pure . Right $ User <$> json ^.. allStations
  where
   allStations =
     key "data" . values . key "attributes" . key "stationEmail" . _String
@@ -84,9 +85,9 @@ setUserStations
   => Jwt
   -> Maybe Root
   -> [StItem]
-  -> m (Either e ())
+  -> m (Either SomeException ())
 setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
-  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
+  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadaa"
   let req = initReq
         { method         = "PUT"
         , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt')]
