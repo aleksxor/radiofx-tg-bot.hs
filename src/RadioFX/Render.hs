@@ -75,22 +75,23 @@ itemsInlineKeyboard :: [StItem] -> InlineKeyboardMarkup
 itemsInlineKeyboard items' =
   InlineKeyboardMarkup
     $  map (pure . itemInlineKeyboardButton) items'
-    <> [[applyButton]]
+    <> [applyButton]
  where
-  applyButton = actionButton btnText ConfirmApply
+  applyButton = flip actionButton ConfirmApply <$> btnText
   hasStatus st = length . filter (== st) . fmap getStatus
   added   = hasStatus Added items'
   removed = hasStatus Removed items'
   btnText = case (added, removed) of
-    (0, 0) -> "Nothing changed"
-    (0, r) -> "Apply (remove " <> Text.pack (show r) <> ")"
-    (a, 0) -> "Apply (add " <> Text.pack (show a) <> ")"
+    (0, 0) -> []
+    (0, r) -> ["Apply (remove " <> Text.pack (show r) <> ")"]
+    (a, 0) -> ["Apply (add " <> Text.pack (show a) <> ")"]
     (a, r) ->
-      "Apply (add "
-        <> Text.pack (show a)
-        <> ", remove "
-        <> Text.pack (show r)
-        <> ")"
+      [ "Apply (add "
+          <> Text.pack (show a)
+          <> ", remove "
+          <> Text.pack (show r)
+          <> ")"
+      ]
 
 itemInlineKeyboardButton :: StItem -> InlineKeyboardButton
 itemInlineKeyboardButton item = actionButton (prefix <> item') action
