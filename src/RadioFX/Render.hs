@@ -47,19 +47,8 @@ selectModeMessage = Text.unlines
   , "  add new users to th selected station group"
   ]
 
-confirmActions :: Model -> EditMessage
-confirmActions _ = (toEditMessage "Apply")
-  { editMessageReplyMarkup = Just
-                             . SomeInlineKeyboardMarkup
-                             . InlineKeyboardMarkup
-                             $ [[btnYes, btnNo]]
-  }
- where
-  btnYes = actionButton "Yes" ApplyChanges
-  btnNo  = actionButton "No" DoNothing
-
-itemsAsInlineKeyboard :: [StItem] -> Root -> EditMessage
-itemsAsInlineKeyboard ss (Root r) = case r of
+itemsAsInlineKeyboard :: Confirm -> [StItem] -> Root -> EditMessage
+itemsAsInlineKeyboard c ss (Root r) = case r of
   User name ->
     itemKeyboard $ "User: '" <> name <> "' is a member of these stations:"
   Station name -> itemKeyboard $ "Station: '" <> name <> "' has these members:"
@@ -68,30 +57,32 @@ itemsAsInlineKeyboard ss (Root r) = case r of
     []     -> "Has no members"
     items' -> (toEditMessage msg)
       { editMessageReplyMarkup = Just
-        $ SomeInlineKeyboardMarkup (itemsInlineKeyboard items')
+        $ SomeInlineKeyboardMarkup (itemsInlineKeyboard c items')
       }
 
-itemsInlineKeyboard :: [StItem] -> InlineKeyboardMarkup
-itemsInlineKeyboard items' =
+itemsInlineKeyboard :: Confirm -> [StItem] -> InlineKeyboardMarkup
+itemsInlineKeyboard c items' =
   InlineKeyboardMarkup
     $  map (pure . itemInlineKeyboardButton) items'
-    <> [applyButton]
+    <> [applyButton c items']
+
+applyButton :: Confirm -> [StItem] -> [InlineKeyboardButton]
+applyButton NoConfirm items' = flip actionButton ConfirmApply <$> btnText
  where
-  applyButton = flip actionButton ConfirmApply <$> btnText
   hasStatus st = length . filter (== st) . fmap getStatus
   added   = hasStatus Added items'
   removed = hasStatus Removed items'
   btnText = case (added, removed) of
     (0, 0) -> []
-    (0, r) -> ["Apply (remove " <> Text.pack (show r) <> ")"]
-    (a, 0) -> ["Apply (add " <> Text.pack (show a) <> ")"]
-    (a, r) ->
-      [ "Apply (add "
-          <> Text.pack (show a)
-          <> ", remove "
-          <> Text.pack (show r)
-          <> ")"
-      ]
+    (0, r) -> ["Apply (remove " <> plItem r <> ")"]
+    (a, 0) -> ["Apply (add " <> plItem a <> ")"]
+    (a, r) -> ["Apply (add " <> plItem a <> ", remove " <> plItem r <> ")"]
+applyButton Confirm _ =
+  [actionButton "Apply" ApplyChanges, actionButton "Cancel" Rerender]
+
+plItem :: Int -> Text
+plItem 1 = "1 item"
+plItem n = Text.pack (show n) <> " items"
 
 itemInlineKeyboardButton :: StItem -> InlineKeyboardButton
 itemInlineKeyboardButton item = actionButton (prefix <> item') action

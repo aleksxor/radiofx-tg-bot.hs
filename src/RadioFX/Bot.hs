@@ -17,7 +17,6 @@ import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , replyText
                                                 , replyOrEdit
                                                 , toEditMessage
-                                                , editUpdateMessage
                                                 )
 import           Telegram.Bot.Simple.UpdateParser
                                                 ( UpdateParser(..)
@@ -76,9 +75,7 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
     WelcomeMessage -> model <# do
       replyText startMessage
       pure DoNothing
-    ConfirmApply -> model <# do
-      editUpdateMessage (confirmActions model)
-      pure DoNothing
+    ConfirmApply -> model <# pure (RenderModel Confirm model)
     ApplyChanges -> model <# case jwt' of
       Nothing -> do
         replyOrEdit
@@ -95,19 +92,29 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
           Left e -> pure . ReplyError . Text.pack $ displayException e
 
     AddItem item -> model <# pure
-      (RenderModel model
-        { items = maybe items' (addItem items') (mkModelItem item <$> root')
-        }
+      (RenderModel
+        NoConfirm
+        model
+          { items = maybe items' (addItem items') (mkModelItem item <$> root')
+          }
       )
     RemoveItem item -> model <# pure
-      (RenderModel model
-        { items = maybe items' (removeItem items') (mkModelItem item <$> root')
-        }
+      (RenderModel
+        NoConfirm
+        model
+          { items = maybe items'
+                          (removeItem items')
+                          (mkModelItem item <$> root')
+          }
       )
     RestoreItem item -> model <# pure
-      (RenderModel model
-        { items = maybe items' (restoreItem items') (mkModelItem item <$> root')
-        }
+      (RenderModel
+        NoConfirm
+        model
+          { items = maybe items'
+                          (restoreItem items')
+                          (mkModelItem item <$> root')
+          }
       )
 
     -- Errors
@@ -127,7 +134,7 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
       case res of
         Right (Just jwt'') -> do
           replyText "Succesfully authorized"
-          pure $ RenderModel model { jwt = Just $ Jwt jwt'' }
+          pure $ RenderModel NoConfirm model { jwt = Just $ Jwt jwt'' }
         Right Nothing -> pure $ ReplyError "Failed to parse response"
         Left  e       -> pure . ReplyError . Text.pack $ displayException e
 
@@ -135,7 +142,7 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
     StartUserMode owner' -> model <# do
       mStations <- liftIO $ getUserStations owner' `catch` genericHandler
       case mStations of
-        Right (Just ss) -> pure . RenderModel $ model
+        Right (Just ss) -> pure . RenderModel NoConfirm $ model
           { root  = Just $ Root (User owner')
           , items = StItem Initial <$> ss
           }
@@ -148,16 +155,17 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
     StartStationMode station' -> model <# do
       eMembers <- liftIO $ getStationMembers station' `catch` genericHandler
       case eMembers of
-        Right members -> pure . RenderModel $ model
+        Right members -> pure . RenderModel NoConfirm $ model
           { root  = Just $ Root (Station station')
           , items = StItem Initial <$> members
           }
         Left e -> pure . ReplyError . Text.pack $ displayException e
 
     -- Render
-    RenderModel model' -> model' <# do
+    Rerender                   -> model <# pure (RenderModel NoConfirm model)
+    RenderModel confirm model' -> model' <# do
       replyOrEdit $ maybe (toEditMessage selectModeMessage)
-                          (itemsAsInlineKeyboard $ items model')
+                          (itemsAsInlineKeyboard confirm $ items model')
                           (root model')
       pure DoNothing
 

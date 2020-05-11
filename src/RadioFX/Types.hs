@@ -45,6 +45,11 @@ instance Show ApiException where
 
 instance Exception ApiException
 
+data Confirm
+  = Confirm
+  | NoConfirm
+  deriving (Show, Read)
+
 data Action
   = DoNothing
   | WelcomeMessage
@@ -53,7 +58,8 @@ data Action
   | AddItem Text
   | RemoveItem Text
   | RestoreItem Text
-  | RenderModel Model
+  | RenderModel Confirm Model
+  | Rerender
   | ReplyError Text
   | ConfirmApply
   | ApplyChanges

@@ -87,7 +87,7 @@ setUserStations
   -> [StItem]
   -> m (Either SomeException ())
 setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
-  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadaa"
+  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
   let req = initReq
         { method         = "PUT"
         , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt')]
@@ -105,8 +105,14 @@ setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
   pure $ Right ()
 setUserStations _ _ _ = throwM ModeException
 
-setStationMembers :: Model -> IO ()
-setStationMembers = undefined
+setStationMembers
+  :: (MonadThrow m, MonadIO m)
+  => Jwt
+  -> Maybe Root
+  -> [StItem]
+  -> m (Either SomeException ())
+setStationMembers (Jwt jwt') (Just (Root (Station name))) users = undefined
+setStationMembers _ _ _ = throwM ModeException
 
 authorize
   :: (MonadThrow m, MonadIO m)
