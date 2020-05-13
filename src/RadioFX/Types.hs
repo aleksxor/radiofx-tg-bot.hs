@@ -38,10 +38,12 @@ data Model
 data ApiException
   = ModeException
   | AuthException Text
+  | ApiException Text
 
 instance Show ApiException where
   show ModeException        = "Wrong command for this mode"
   show (AuthException user) = "Failed to authorize user" <> Text.unpack user
+  show (ApiException  text) = "Failed to make API request" <> Text.unpack text
 
 instance Exception ApiException
 

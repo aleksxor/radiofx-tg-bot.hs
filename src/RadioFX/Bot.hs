@@ -82,8 +82,9 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
           $ toEditMessage "Authorize with /auth command to commit changes"
         pure DoNothing
       Just token -> do
+        let stations = getStItem <$> filterOutRemoved items'
         res <-
-          liftIO $ setUserStations token root' items' `catch` genericHandler
+          liftIO $ setUserStations token root' stations `catch` genericHandler
         case res of
           Right () -> pure $ maybe
             (ReplyError "Empty root field")

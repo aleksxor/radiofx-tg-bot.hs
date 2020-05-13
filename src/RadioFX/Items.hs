@@ -30,3 +30,6 @@ mkModelItem :: Text -> Root -> Item
 mkModelItem text (Root root') = case root' of
   User    _ -> Station text
   Station _ -> User text
+
+filterOutRemoved :: [StItem] -> [StItem]
+filterOutRemoved = filter ((/= Removed) . getStatus)

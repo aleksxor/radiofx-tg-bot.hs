@@ -11,8 +11,7 @@ import           Network.HTTP.Client            ( RequestBody(..)
                                                 , requestBody
                                                 , requestHeaders
                                                 )
-import           Control.Exception              ( SomeException )
--- import           Debug.Trace                    ( traceM )
+import           Debug.Trace                    ( traceM )
 import           Network.HTTP.Types             ( hAuthorization )
 import           Control.Lens                   ( preview
                                                 , (^..)
@@ -51,17 +50,16 @@ fetchJSON uri = do
 splitGroups :: Text -> [Item]
 splitGroups = fmap Station . Text.splitOn ","
 
-getUserStations
-  :: (MonadIO m) => Text -> m (Either SomeException (Maybe [Item]))
+getUserStations :: (MonadIO m, MonadThrow n) => Text -> m (n (Maybe [Item]))
 getUserStations owner' = do
   json <- liftIO $ fetchJSON ("/metadata?id=" <> owner')
   pure
-    .   Right
+    .   pure
     $   splitGroups
     <$> preview (key "data" . key "attributes" . key "stationGroup" . _String)
                 json
 
-getStationMembers :: (MonadIO m) => Text -> m (Either SomeException [Item])
+getStationMembers :: (MonadIO m, MonadThrow n) => Text -> m (n [Item])
 getStationMembers station = do
   json <-
     liftIO
@@ -69,31 +67,21 @@ getStationMembers station = do
     $  "/list?limit=100&filter=%7B\"stationGroup\":\""
     <> station
     <> "\"%7D"
-  pure . Right $ User <$> json ^.. allStations
+  pure . pure $ User <$> json ^.. allStations
  where
   allStations =
     key "data" . values . key "attributes" . key "stationEmail" . _String
 
-collectItemNames :: [StItem] -> Text
-collectItemNames = Text.intercalate "," . collect
- where
-  collect   = fmap (getItemName . getStItem) . filter woRemoved
-  woRemoved = (/= Removed) . getStatus
-
 setUserStations
-  :: (MonadThrow m, MonadIO m)
-  => Jwt
-  -> Maybe Root
-  -> [StItem]
-  -> m (Either SomeException ())
+  :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [Item] -> m (n ())
 setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
-  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
+  initReq <- liftIO $ parseUrlThrow . Text.unpack $ baseURL <> "/metadadta"
   let req = initReq
         { method         = "PUT"
         , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt')]
         , requestBody    = RequestBodyLBS $ encode reqObject
         }
-      stationGroup = collectItemNames stations
+      stationGroup = Text.intercalate "," $ getItemName <$> stations
       reqObject    = object
         [ "data" .= object
             [ "id" .= name
@@ -101,26 +89,33 @@ setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
             , "attributes" .= object ["stationGroup" .= stationGroup]
             ]
         ]
-  _ <- httpBS req
-  pure $ Right ()
-setUserStations _ _ _ = throwM ModeException
+  -- _ <- httpBS req
+  traceM $ show req
+  pure $ pure ()
+setUserStations _ _ _ = pure $ throwM ModeException
 
 setStationMembers
-  :: (MonadThrow m, MonadIO m)
-  => Jwt
-  -> Maybe Root
-  -> [StItem]
-  -> m (Either SomeException ())
-setStationMembers (Jwt jwt') (Just (Root (Station name))) users = undefined
-setStationMembers _ _ _ = throwM ModeException
+  :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [Item] -> m [n ()]
+setStationMembers jwt' (Just (Root (Station name))) users = mapM go users
+ where
+  go :: (MonadIO m, MonadThrow n) => Item -> m (n ())
+  go u@(User user') = do
+    mSs <- getUserStations user'
+    case mSs of
+      Just (Just ss) ->
+        setUserStations jwt' (Just (Root u)) (Station name : ss)
+      _ ->
+        pure
+          .  throwM
+          .  ApiException
+          $  "could not fetch stations for user: "
+          <> user'
+  go _ = pure $ throwM ModeException
+setStationMembers _ _ _ = pure (throwM ModeException)
 
-authorize
-  :: (MonadThrow m, MonadIO m)
-  => Text
-  -> Text
-  -> m (Either SomeException (Maybe Text))
+authorize :: (MonadIO m, MonadThrow n) => Text -> Text -> m (n (Maybe Text))
 authorize login password = do
-  initReq <- parseUrlThrow . Text.unpack $ baseURL <> "/login"
+  initReq <- liftIO $ parseUrlThrow . Text.unpack $ baseURL <> "/login"
   let req = initReq { method      = "POST"
                     , requestBody = RequestBodyLBS $ encode reqObject
                     }
@@ -133,7 +128,7 @@ authorize login password = do
         ]
   res <- httpBS req
   pure
-    . Right
+    . pure
     . preview (key "meta" . key "jwt" . _String)
     . getResponseBody
     $ res
