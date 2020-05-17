@@ -26,6 +26,10 @@ import           Control.Monad.Trans.Resource   ( MonadThrow
 import           Control.Monad.Trans            ( liftIO
                                                 , MonadIO
                                                 )
+import           Control.Exception              ( SomeException(..) )
+import           Control.Monad.Trans.Except     ( ExceptT(..)
+                                                , throwE
+                                                )
 import qualified Data.ByteString.Char8         as BS
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
@@ -90,28 +94,30 @@ setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
             ]
         ]
   -- _ <- httpBS req
-  traceM $ show req
-  pure $ pure ()
+  liftIO . traceM . Text.unpack $ name <> " : " <> stationGroup
+  pure . pure $ ()
 setUserStations _ _ _ = pure $ throwM ModeException
 
 setStationMembers
-  :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [Item] -> m [n ()]
-setStationMembers jwt' (Just (Root (Station name))) users = mapM go users
+  :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [StItem] -> m (n ())
+setStationMembers jwt' (Just (Root s@(Station name))) users = _r go users
  where
-  go :: (MonadIO m, MonadThrow n) => Item -> m (n ())
-  go u@(User user') = do
-    mSs <- getUserStations user'
+  -- go :: (MonadIO m, MonadThrow n) => StItem -> m (n ())
+  go (StItem Added   u@(User _)) = store u (Station name :)
+  go (StItem Removed u@(User _)) = store u (filter (/= s))
+  go _                           = pure $ throwM ModeException
+
+  store u@(User u') f = do
+    mSs <- getUserStations u'
     case mSs of
-      Just (Just ss) ->
-        setUserStations jwt' (Just (Root u)) (Station name : ss)
+      Just (Just ss) -> setUserStations jwt' (Just (Root u)) (f ss)
       _ ->
         pure
           .  throwM
           .  ApiException
           $  "could not fetch stations for user: "
-          <> user'
-  go _ = pure $ throwM ModeException
-setStationMembers _ _ _ = pure (throwM ModeException)
+          <> u'
+setStationMembers _ _ _ = pure $ throwM ModeException
 
 authorize :: (MonadIO m, MonadThrow n) => Text -> Text -> m (n (Maybe Text))
 authorize login password = do
