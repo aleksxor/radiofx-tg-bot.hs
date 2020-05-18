@@ -29,6 +29,7 @@ startMessage = Text.unlines
   , "/user <owner@email.com> - show owner's station group(s)"
   , "/station <stationGroup> - show stationGroup members"
   , "/add <station|user> - add a station or a user depending on the mode"
+  , "/show - display current bot state"
   , ""
   , "There are two modes:"
   , "  * User mode - show user's stations and inline keyboard"

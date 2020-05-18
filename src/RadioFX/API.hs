@@ -26,10 +26,6 @@ import           Control.Monad.Trans.Resource   ( MonadThrow
 import           Control.Monad.Trans            ( liftIO
                                                 , MonadIO
                                                 )
-import           Control.Exception              ( SomeException(..) )
-import           Control.Monad.Trans.Except     ( ExceptT(..)
-                                                , throwE
-                                                )
 import qualified Data.ByteString.Char8         as BS
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
@@ -93,16 +89,16 @@ setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
             , "attributes" .= object ["stationGroup" .= stationGroup]
             ]
         ]
-  -- _ <- httpBS req
+  _ <- httpBS req
   liftIO . traceM . Text.unpack $ name <> " : " <> stationGroup
   pure . pure $ ()
 setUserStations _ _ _ = pure $ throwM ModeException
 
 setStationMembers
-  :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [StItem] -> m (n ())
-setStationMembers jwt' (Just (Root s@(Station name))) users = _r go users
+  :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [StItem] -> m [n ()]
+setStationMembers jwt' (Just (Root s@(Station name))) users = mapM go users
  where
-  -- go :: (MonadIO m, MonadThrow n) => StItem -> m (n ())
+  go :: (MonadIO m, MonadThrow n) => StItem -> m (n ())
   go (StItem Added   u@(User _)) = store u (Station name :)
   go (StItem Removed u@(User _)) = store u (filter (/= s))
   go _                           = pure $ throwM ModeException
@@ -117,6 +113,7 @@ setStationMembers jwt' (Just (Root s@(Station name))) users = _r go users
           .  ApiException
           $  "could not fetch stations for user: "
           <> u'
+  store _ _ = pure $ throwM ModeException
 setStationMembers _ _ _ = pure $ throwM ModeException
 
 authorize :: (MonadIO m, MonadThrow n) => Text -> Text -> m (n (Maybe Text))

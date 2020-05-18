@@ -5,12 +5,10 @@ import           Control.Applicative            ( (<|>) )
 import           Control.Monad.Trans            ( MonadIO
                                                 , liftIO
                                                 )
-import           Control.Monad.Trans.Except     ( ExceptT(..) )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 import           Control.Exception              ( catch
                                                 , displayException
-                                                , SomeException
                                                 )
 
 import           Telegram.Bot.Simple            ( BotApp(..)
@@ -57,6 +55,8 @@ handleUpdate _model =
     <$> orCommand "add"
     <|> twoArgs Auth
     <$> orCommand "auth"
+    <|> Rerender
+    <$  orCommand "show"
     <|> callbackQueryDataRead
     <|> pure WrongCommand
  where
@@ -96,19 +96,15 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
             Left e -> pure . ReplyError . Text.pack $ displayException e
         Just (Root (Station _)) -> do
           res <-
-            liftIO
-              (setStationMembers token root' items' :: ExceptT
-                  SomeException
-                  IO
-                  ()
-              )
-          pure DoNothing
-          -- case res of
-          --   Right _ -> pure $ maybe
-          --     (ReplyError "Empty root field")
-          --     (StartStationMode . getItemName . getRootItem)
-          --     root'
-          --   Left e -> pure . ReplyError . Text.pack $ displayException e
+            liftIO $ setStationMembers token root' items' `catch` listHandler
+          case res of
+            [Left e] -> pure . ReplyError . Text.pack $ displayException e
+            _ -> pure $ maybe (ReplyError "Empty root field")
+                              (StartStationMode . getItemName . getRootItem)
+                              root'
+         where
+          listHandler :: (MonadIO m) => e -> m [Either e ()]
+          listHandler = pure . pure . Left
         Nothing -> pure $ ReplyError "Empty root field"
 
     AddItem item -> model <# pure
