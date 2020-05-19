@@ -90,7 +90,7 @@ setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
             ]
         ]
   _ <- httpBS req
-  liftIO . traceM . Text.unpack $ name <> " : " <> stationGroup
+  traceM . Text.unpack $ name <> " : " <> stationGroup
   pure . pure $ ()
 setUserStations _ _ _ = pure $ throwM ModeException
 
