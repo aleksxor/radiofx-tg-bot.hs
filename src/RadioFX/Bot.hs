@@ -2,34 +2,34 @@
 module RadioFX.Bot where
 
 import           Control.Applicative            ( (<|>) )
+import           Control.Exception              ( catch
+                                                , displayException
+                                                )
 import           Control.Monad.Trans            ( MonadIO
                                                 , liftIO
                                                 )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
-import           Control.Exception              ( catch
-                                                , displayException
-                                                )
 
+import           Telegram.Bot.API               ( Update(..) )
 import           Telegram.Bot.Simple            ( BotApp(..)
                                                 , Eff(..)
-                                                , (<#)
-                                                , replyText
                                                 , replyOrEdit
+                                                , replyText
                                                 , toEditMessage
+                                                , (<#)
                                                 )
 import           Telegram.Bot.Simple.UpdateParser
                                                 ( UpdateParser(..)
+                                                , callbackQueryDataRead
                                                 , command
                                                 , parseUpdate
-                                                , callbackQueryDataRead
                                                 )
-import           Telegram.Bot.API               ( Update(..) )
 
-import           RadioFX.Types
 import           RadioFX.API
-import           RadioFX.Render
 import           RadioFX.Items
+import           RadioFX.Render
+import           RadioFX.Types
 
 bot :: BotApp Model Action
 bot = BotApp
