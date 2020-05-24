@@ -1,0 +1,9 @@
+[
+    {
+	"name": "radiofx-tg-bot",
+	"image": "${repository_url}:latest",
+	"cpu": 10,
+	"memory": 1024,
+	"essential": true
+    }
+]
