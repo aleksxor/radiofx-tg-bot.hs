@@ -5,6 +5,14 @@ provider "aws" {
 resource "aws_security_group" "radiofx-tg-bot-access" {
   name = "radiofx-tg-bot-access"
 
+  ingress {
+    description = "SSH"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port = 0
     to_port = 0
@@ -44,6 +52,7 @@ resource "aws_ecr_repository" "radiofx-tg-bot" {
 resource "aws_instance" "radiofx-tg-bot" {
   ami = "ami-0d6621c01e8c2de2c"
   instance_type = "t2.micro"
+  key_name = "aleksxor-msi"
   vpc_security_group_ids = [
     "${aws_security_group.radiofx-tg-bot-access.id}"
   ]
@@ -60,6 +69,6 @@ resource "aws_instance" "radiofx-tg-bot" {
     echo ECS_CLUSTER=${aws_ecs_cluster.radiofx-tg-bot.name} \
       >> /etc/ecs/ecs.config
     echo ECS_ENGINE_TASK_CLEANUP_WAIT_DURATION='30m' \
-      >> /etc/ecs/ecs/config
+      >> /etc/ecs/ecs.config
   EOF
 }

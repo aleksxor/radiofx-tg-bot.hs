@@ -4,3 +4,6 @@ dist-newstyle/
 dist/
 .stack-work/
 TAGS
+
+.terraform/
+terraform.tfstate*
