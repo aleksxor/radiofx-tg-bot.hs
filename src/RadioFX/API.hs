@@ -75,7 +75,7 @@ getStationMembers station = do
 setUserStations
   :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [Item] -> m (n ())
 setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
-  initReq <- liftIO $ parseUrlThrow . Text.unpack $ baseURL <> "/metadadta"
+  initReq <- liftIO $ parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
   let req = initReq
         { method         = "PUT"
         , requestHeaders = [(hAuthorization, encodeUtf8 $ "JWT " <> jwt')]
