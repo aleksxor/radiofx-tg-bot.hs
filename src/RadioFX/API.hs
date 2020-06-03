@@ -70,7 +70,7 @@ getStationMembers station = do
   pure . pure $ User <$> json ^.. allStations
  where
   allStations =
-    key "data" . values . key "attributes" . key "stationEmail" . _String
+    key "data" . values . key "attributes" . key "username" . _String
 
 setUserStations
   :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [Item] -> m (n ())
