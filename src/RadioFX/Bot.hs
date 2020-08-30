@@ -98,7 +98,7 @@ handleUpdate _model =
     <|> Rerender
     <$  orCommand "show"
     <|> callbackQueryDataRead
-    <|> pure WrongCommand
+    <|> pure DoNothing
  where
   singleArg :: (Text -> Action) -> Text -> Action
   singleArg action t = case Text.words t of
