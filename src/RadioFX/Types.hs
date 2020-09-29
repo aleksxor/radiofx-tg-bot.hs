@@ -15,8 +15,17 @@ data StItem = StItem
   , getStItem :: Item
   } deriving (Show, Read, Eq)
 
+data Visibility
+  = Visible
+  | Hidden
+  deriving (Read, Eq)
+
+instance Show Visibility where
+  show Visible = ""
+  show Hidden  = "[hidden]"
+
 data Item
-  = User Text
+  = User Visibility Text
   | Station Text
   deriving (Show, Read, Eq)
 
