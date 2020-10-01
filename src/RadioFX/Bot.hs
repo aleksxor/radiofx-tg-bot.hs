@@ -124,7 +124,7 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
           $ toEditMessage "Authorize with /auth command to commit changes"
         pure DoNothing
       Just token -> case root' of
-        Just (Root (User _)) -> do
+        Just (Root (User _ _)) -> do
           let stations = getStItem <$> filterOutRemoved items'
           res <-
             liftIO $ setUserStations token root' stations `catch` genericHandler
@@ -199,7 +199,7 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
       mStations <- liftIO $ getUserStations owner' `catch` genericHandler
       case mStations of
         Right (Just ss) -> pure . RenderModel NoConfirm $ model
-          { root  = Just $ Root (User owner')
+          { root  = Just $ Root (User True owner')
           , items = StItem Initial <$> ss
           }
         Right Nothing -> do

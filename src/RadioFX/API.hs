@@ -67,14 +67,14 @@ getStationMembers station = do
     $  "/list?limit=100&filter=%7B\"stationGroup\":\""
     <> station
     <> "\"%7D"
-  pure . pure $ User <$> json ^.. allStations
+  pure . pure $ User True <$> json ^.. allNames
  where
-  allStations =
-    key "data" . values . key "attributes" . key "username" . _String
+  attributes = key "data" . values . key "attributes"
+  allNames = attributes . key "username" . _String
 
 setUserStations
   :: (MonadIO m, MonadThrow n) => Jwt -> Maybe Root -> [Item] -> m (n ())
-setUserStations (Jwt jwt') (Just (Root (User name))) stations = do
+setUserStations (Jwt jwt') (Just (Root (User _ name))) stations = do
   initReq <- liftIO $ parseUrlThrow . Text.unpack $ baseURL <> "/metadata"
   let req = initReq
         { method         = "PUT"
@@ -99,11 +99,11 @@ setStationMembers
 setStationMembers jwt' (Just (Root s@(Station name))) users = mapM go users
  where
   go :: (MonadIO m, MonadThrow n) => StItem -> m (n ())
-  go (StItem Added   u@(User _)) = store u (Station name :)
-  go (StItem Removed u@(User _)) = store u (filter (/= s))
+  go (StItem Added   u@(User _ _)) = store u (Station name :)
+  go (StItem Removed u@(User _ _)) = store u (filter (/= s))
   go _                           = pure $ throwM ModeException
 
-  store u@(User u') f = do
+  store u@(User _ u') f = do
     mSs <- getUserStations u'
     case mSs of
       Just (Just ss) -> setUserStations jwt' (Just (Root u)) (f ss)

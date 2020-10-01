@@ -25,7 +25,7 @@ instance Show Visibility where
   show Hidden  = "[hidden]"
 
 data Item
-  = User Visibility Text
+  = User Bool Text
   | Station Text
   deriving (Show, Read, Eq)
 

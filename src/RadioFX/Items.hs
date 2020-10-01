@@ -2,11 +2,12 @@
 module RadioFX.Items where
 
 import           Data.Text                      ( Text )
+import qualified Data.Text as Text
 import           RadioFX.Types
 
 getItemName :: Item -> Text
-getItemName (User visible name) = name <> " " <> show visible
-getItemName (Station      name) = name
+getItemName (User visible name) = name <> Text.pack (" " <> show visible)
+getItemName (Station name)         = name
 
 removeItem :: [StItem] -> Item -> [StItem]
 removeItem ss s = foldr remove [] ss
@@ -29,7 +30,7 @@ restoreItem ss s = foldr restore [] ss
 mkModelItem :: Text -> Root -> Item
 mkModelItem text (Root root') = case root' of
   User  _ _ -> Station text
-  Station _ -> User Visible text
+  Station _ -> User True text
 
 filterOutRemoved :: [StItem] -> [StItem]
 filterOutRemoved = filter ((/= Removed) . getStatus)
