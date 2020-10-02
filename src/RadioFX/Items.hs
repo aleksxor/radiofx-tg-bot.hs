@@ -30,7 +30,7 @@ restoreItem ss s = foldr restore [] ss
 mkModelItem :: Text -> Root -> Item
 mkModelItem text (Root root') = case root' of
   User  _ _ -> Station text
-  Station _ -> User True text
+  Station _ -> User Visible text
 
 filterOutRemoved :: [StItem] -> [StItem]
 filterOutRemoved = filter ((/= Removed) . getStatus)

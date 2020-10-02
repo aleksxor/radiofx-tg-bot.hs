@@ -50,10 +50,12 @@ selectModeMessage = Text.unlines
 
 itemsAsInlineKeyboard :: Confirm -> [StItem] -> Root -> EditMessage
 itemsAsInlineKeyboard c ss (Root r) = case r of
-  User _ name ->
-    itemKeyboard $ "User: '" <> name <> "' is a member of these stations:"
+  User visible name ->
+    itemKeyboard $ "User: '" <> name <> " " <> showVisible visible <> "' is a member of these stations:"
   Station name -> itemKeyboard $ "Station: '" <> name <> "' has these members:"
  where
+  showVisible Visible = ""
+  showVisible Hidden = "[hidden]"
   itemKeyboard msg = case ss of
     []     -> "Has no members"
     items' -> (toEditMessage msg)

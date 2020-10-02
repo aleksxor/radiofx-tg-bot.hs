@@ -18,14 +18,10 @@ data StItem = StItem
 data Visibility
   = Visible
   | Hidden
-  deriving (Read, Eq)
-
-instance Show Visibility where
-  show Visible = ""
-  show Hidden  = "[hidden]"
+  deriving (Show, Read, Eq)
 
 data Item
-  = User Bool Text
+  = User Visibility Text
   | Station Text
   deriving (Show, Read, Eq)
 

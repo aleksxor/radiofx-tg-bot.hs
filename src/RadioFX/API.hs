@@ -19,6 +19,7 @@ import           Control.Lens                   ( preview
 import           Data.Aeson.Lens                ( key
                                                 , values
                                                 , _String
+                                                , _Bool
                                                 )
 import           Control.Monad.Trans.Resource   ( MonadThrow
                                                 , throwM
@@ -50,14 +51,15 @@ fetchJSON uri = do
 splitGroups :: Text -> [Item]
 splitGroups = fmap Station . Text.splitOn ","
 
-getUserStations :: (MonadIO m, MonadThrow n) => Text -> m (n (Maybe [Item]))
+getUserStations :: (MonadIO m, MonadThrow n) => Text -> m (n ((Visibility, Maybe [Item])))
 getUserStations owner' = do
   json <- liftIO $ fetchJSON ("/metadata?id=" <> owner')
-  pure
-    .   pure
-    $   splitGroups
-    <$> preview (key "data" . key "attributes" . key "stationGroup" . _String)
-                json
+  pure . pure $ (visible json, groups json)
+  where
+    visible = maybe Visible toVisible . preview (key "data" . key "attributes" . key "hidden" . _Bool)
+    groups j = splitGroups <$> preview (key "data" . key "attributes" . key "stationGroup" . _String) j
+    toVisible True = Hidden
+    toVisible False = Visible
 
 getStationMembers :: (MonadIO m, MonadThrow n) => Text -> m (n [Item])
 getStationMembers station = do
@@ -67,7 +69,7 @@ getStationMembers station = do
     $  "/list?limit=100&filter=%7B\"stationGroup\":\""
     <> station
     <> "\"%7D"
-  pure . pure $ User True <$> json ^.. allNames
+  pure . pure $ User Visible <$> json ^.. allNames
  where
   attributes = key "data" . values . key "attributes"
   allNames = attributes . key "username" . _String
@@ -106,7 +108,7 @@ setStationMembers jwt' (Just (Root s@(Station name))) users = mapM go users
   store u@(User _ u') f = do
     mSs <- getUserStations u'
     case mSs of
-      Just (Just ss) -> setUserStations jwt' (Just (Root u)) (f ss)
+      Just (_, Just ss) -> setUserStations jwt' (Just (Root u)) (f ss)
       _ ->
         pure
           .  throwM

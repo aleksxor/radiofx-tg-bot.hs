@@ -196,13 +196,13 @@ handleAction action model@Model { jwt = jwt', root = root', items = items' } =
 
     -- UserMode
     StartUserMode owner' -> model <# do
-      mStations <- liftIO $ getUserStations owner' `catch` genericHandler
-      case mStations of
-        Right (Just ss) -> pure . RenderModel NoConfirm $ model
-          { root  = Just $ Root (User True owner')
+      result <- liftIO $ getUserStations owner' `catch` genericHandler
+      case result of
+        Right (visible, Just ss) -> pure . RenderModel NoConfirm $ model
+          { root  = Just $ Root (User visible owner')
           , items = StItem Initial <$> ss
           }
-        Right Nothing -> do
+        Right (_, Nothing) -> do
           replyText $ "Could not fetch stations for: " <> owner'
           pure DoNothing
         Left e -> pure . ReplyError . Text.pack $ displayException e
